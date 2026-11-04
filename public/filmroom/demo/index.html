@@ -1,0 +1,1804 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Film Room Demo · Ice Hockey Video</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: broadcast-booth film room. Video stage left, live rink + on-ice list right, transport + timeline under the video. Single dark look on purpose (video work). */
+:root{
+  --bg:#0a0e13; --panel:#111821; --panel-2:#16202b; --line:#223041; --fg:#e7edf3; --mute:#8796a8; --ice:#8fd0ff; --goal:#ff5d4f; --ok:#5fd39a;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg)}
+body{font:14px/1.45 var(--f-body);padding-inline:16px;padding-block:12px 28px}
+.wrap{max-width:1440px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+button,select{font:inherit;color:var(--fg)}
+:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+.eyebrow{font:500 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+h1{font:700 30px/1.05 var(--f-display);letter-spacing:.01em;margin:4px 0 0;text-wrap:balance}
+.score{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700}
+.score .tm{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:20px;letter-spacing:.03em}
+.score .tm b{font-size:26px;font-variant-numeric:tabular-nums}
+.chip{width:10px;height:22px;border-radius:2px;display:inline-block}
+.clock{font:500 13px var(--f-mono);color:var(--mute);text-align:right}
+.clock b{display:block;font:600 22px var(--f-mono);color:var(--fg);font-variant-numeric:tabular-nums}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:start}
+@media (max-width:1050px){.main{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:16/9;max-width:100%;border:1px solid var(--line)}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage video{object-fit:contain}
+.stage canvas{cursor:crosshair}
+.overlay-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;background:rgba(5,8,12,.72);color:var(--fg)}
+.overlay-msg[hidden]{display:none!important}
+.bigplay{border:0;background:var(--ice);color:#06121d;font:700 18px var(--f-display);letter-spacing:.06em;text-transform:uppercase;padding:12px 22px;border-radius:999px;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}
+.card h2{font:600 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:0 0 10px;display:flex;justify-content:space-between;gap:8px}
+#rink{width:100%;aspect-ratio:210/95;display:block}
+
+/* transport */
+.transport{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.btn{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:34px}
+.btn:hover{border-color:#35506b}
+.btn.on{border-color:var(--ice);color:var(--ice)}
+.btn.primary{background:var(--ice);color:#06121d;border-color:var(--ice);font-weight:600;min-width:84px;justify-content:center}
+.sep{flex:1}
+select.btn{padding-right:6px}
+.kbd{font:500 11px var(--f-mono);color:var(--mute)}
+#timeline{width:100%;height:58px;display:block;cursor:pointer;border-radius:8px;background:var(--panel)}
+.tl-legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute)}
+.tl-legend i{display:inline-block;width:14px;height:6px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* on-ice lists */
+.onice{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.onice{grid-template-columns:1fr}}
+.team-h{font:700 15px var(--f-display);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.prow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px;margin-bottom:4px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:var(--panel-2);transition:border-color .15s,transform .15s}
+.prow:hover{border-color:#35506b;transform:translateX(2px)}
+.prow.sel{border-color:var(--ice);box-shadow:0 0 0 1px var(--ice),0 0 14px rgba(143,208,255,.25)}
+.prow .no{font:700 19px/1 var(--f-display);font-variant-numeric:tabular-nums;text-align:center;color:#fff;border-radius:6px;padding:6px 0;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.prow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:var(--mute)}
+.prow .nm b{font:700 15px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;color:var(--fg)}
+.prow .sp{white-space:nowrap;font:500 11px var(--f-mono);text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;padding-right:4px}
+.prow .sp b{font:600 14px var(--f-mono);color:var(--ice)}
+.unid{font-size:12px;color:var(--mute);padding:6px 4px;display:flex;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:8px}
+.unid .q{width:34px;text-align:center;font:700 17px var(--f-display);color:var(--mute)}
+.empty{font-size:13px;color:var(--mute)}
+
+/* player card */
+.pcard{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px}
+@media (max-width:760px){.pcard{grid-template-columns:minmax(0,1fr)}}
+.who{display:flex;align-items:center;gap:12px}
+.who .big{font:700 52px/0.9 var(--f-display);font-variant-numeric:tabular-nums}
+.who .nm{font:700 26px/1 var(--f-display);letter-spacing:.02em;text-transform:uppercase}
+.who .sub{color:var(--mute);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font:600 24px/1.05 var(--f-display);font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+.stat.live b{color:var(--ice)}
+.zbar{display:flex;height:10px;border-radius:3px;overflow:hidden;margin:6px 0 2px}
+.zbar i{display:block;height:100%}
+.zlab{display:flex;justify-content:space-between;font:500 11px var(--f-mono);color:var(--mute)}
+.shifts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.shifts button{background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font:500 12px var(--f-mono);cursor:pointer}
+.shifts button:hover{border-color:var(--ice)}
+#spark{width:100%;height:70px;display:block}
+.note{font-size:12px;color:var(--mute);max-width:75ch}
+a{color:var(--ice)}
+.hint{font-size:12px;color:var(--mute)}
+
+/* events */
+.evcard h2 .acts{display:flex;gap:6px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.fchip{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:3px 10px;font:500 12px var(--f-body);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.fchip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.fchip b{font:500 11px var(--f-mono);color:var(--mute)}
+.fchip.off{opacity:.45}
+.fchip.on{border-color:#3f5c78}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;align-items:center}
+.evlist{max-height:430px;overflow:auto;border-top:1px solid var(--line)}
+.evrow{display:grid;grid-template-columns:68px 104px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 4px 7px 8px;border-bottom:1px solid var(--line);cursor:pointer;box-shadow:inset 3px 0 0 var(--tc,transparent)}
+.evrow:hover{background:var(--panel-2)}
+.evrow.now{background:#152536}
+.evrow .tm{font:500 12px var(--f-mono);color:var(--mute);font-variant-numeric:tabular-nums}
+.evrow .ty{display:flex;align-items:center;gap:6px;font:700 15px var(--f-display);letter-spacing:.03em;text-transform:uppercase}
+.evrow .ty i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.evrow .who{display:block;min-width:0}
+.evrow .who b{font-weight:600}
+.evrow .who span{display:block;font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evrow .st{display:flex;gap:4px;align-items:center}
+.badge{font:500 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.badge.ok{color:var(--ok);border-color:#2e6b52}
+.badge.chk{color:#facc15;border-color:#6b5a1f}
+.badge.you{color:var(--ice);border-color:#2f5878}
+.ib{background:transparent;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:2px 6px;color:var(--mute);font:600 13px var(--f-body)}
+.ib:hover{border-color:var(--line);color:var(--fg)}
+.editor{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px;background:var(--panel-2);border-radius:8px;margin:2px 0 6px}
+.editor input[type=text]{background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--fg);padding:6px 8px;min-width:160px;flex:1}
+.saveinfo{font-size:12px;color:var(--mute)}
+#cmt{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.cl{display:grid;grid-template-columns:56px 1fr;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--mute)}
+.cl:hover{background:var(--panel-2)}
+.cl.now{color:var(--fg);background:#152536}
+.cl .tm{font:500 11px var(--f-mono)}
+.cl mark{background:transparent;color:var(--ice);font-weight:600}
+.fix select{max-width:100%}
+.fix{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.leftcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.pev-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 0 6px;font-weight:600;font-size:13px}
+.pev-chips{margin-bottom:6px}
+.pev-list{max-height:220px;overflow:auto;border-top:1px solid var(--line, #223041)}
+.pev-row{display:grid;grid-template-columns:62px 92px 1fr;gap:8px;align-items:center;padding:6px 2px;border-bottom:1px solid var(--line, #223041);cursor:pointer;font-size:12.5px}
+.pev-row:hover,.pev-row:focus{background:rgba(143,208,255,.08);outline:none}
+.pev-row .tm{font-family:"IBM Plex Mono",monospace;opacity:.75}
+.pev-row .ty{display:flex;align-items:center;gap:6px}
+.pev-row .ty i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.pev-row .sub{opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.sq{margin-top:12px;padding:10px;border:1px solid var(--ice);border-radius:8px;background:rgba(143,208,255,.06);font-size:13px}
+.sq-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+
+/* follow lock: stays on until you click the player again, press Esc or ✕ */
+.lockbar{position:absolute;left:10px;top:10px;z-index:4;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 6px;border-radius:10px;background:rgba(8,12,17,.86);border:1px solid var(--ice);box-shadow:0 4px 18px rgba(0,0,0,.45);max-width:calc(100% - 20px);backdrop-filter:blur(4px)}
+.lockbar.off{border-color:#5b6b7c;border-style:dashed}
+.lk-num{min-width:42px;height:42px;padding:0 6px;border-radius:8px;display:grid;place-items:center;font:700 26px/1 var(--f-display);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.lk-txt{display:flex;flex-direction:column;min-width:0;gap:1px}
+.lk-top{display:flex;gap:6px;align-items:center;font:500 10px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.lk-tag{color:var(--ice)}
+.lockbar.off .lk-tag{color:var(--mute)}
+#lk_name{font:700 19px/1.05 var(--f-display);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#lk_state{font:500 12px var(--f-mono);color:var(--ice);font-variant-numeric:tabular-nums}
+.lockbar.off #lk_state{color:#c3ccd6}
+.lk-x{background:transparent;border:1px solid var(--line);color:var(--fg);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:14px;flex:none}
+.lk-x:hover{border-color:var(--ice);color:var(--ice)}
+@media (max-width:560px){.lk-num{min-width:32px;height:32px;font-size:20px} #lk_name{font-size:15px}}
+.jersey{min-width:58px;height:58px;padding:0 8px;border-radius:10px;display:grid;place-items:center;font:700 40px/1 var(--f-display);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);box-shadow:inset 0 -6px 0 rgba(0,0,0,.18)}
+
+/* guided demo: dim everything but the feature shown, pointer, chapter cards, lower-third captions */
+body.demo .note,body.demo .tl-legend,body.demo .back{display:none}
+body.demo .evlist{max-height:220px}
+.dfocus{position:relative;z-index:40!important;box-shadow:0 0 0 200vmax rgba(4,7,11,.66),0 0 0 2px var(--ice),0 0 34px rgba(143,208,255,.35)!important;transition:box-shadow .5s ease}
+.stage.dfocus{z-index:30!important}
+.dcap{position:absolute;left:16px;bottom:16px;z-index:6;display:flex;flex-direction:column;gap:3px;max-width:min(640px,calc(100% - 32px));padding:12px 18px 12px 16px;border-radius:12px;background:linear-gradient(90deg,rgba(8,12,17,.94),rgba(8,12,17,.82));border-left:4px solid var(--ice);box-shadow:0 10px 30px rgba(0,0,0,.5);pointer-events:none}
+.dcap.in{animation:capin .55s cubic-bezier(.2,.8,.2,1)}
+@keyframes capin{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+#dcap_t{font:700 clamp(18px,2.3vw,30px)/1.05 var(--f-display);letter-spacing:.02em;text-transform:uppercase}
+#dcap_s{font-size:clamp(12px,1.15vw,15px);color:#c3ccd6}
+.dchap{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(4,7,11,.86);backdrop-filter:blur(6px);pointer-events:none}
+.dchap.in{animation:chapin 1.7s ease both}
+@keyframes chapin{0%{opacity:0}18%{opacity:1}82%{opacity:1}100%{opacity:0}}
+#dchap_n{font:600 14px var(--f-mono);letter-spacing:.3em;color:var(--ice)}
+#dchap_t{font:700 clamp(30px,5vw,64px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.03em}
+.dintro,.dend{position:absolute;inset:0;z-index:7;display:grid;place-items:center;background:radial-gradient(ellipse at center,rgba(16,32,48,.9),rgba(5,8,12,.97));animation:capin .7s ease}
+.dend{cursor:pointer}
+.dend-in{text-align:center;padding:20px;display:grid;gap:12px}
+.dend-k{font:500 12px var(--f-mono);letter-spacing:.24em;text-transform:uppercase;color:var(--ice)}
+.dend-t{font:700 clamp(28px,4.6vw,60px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;text-wrap:balance}
+.dend-s{color:#c3ccd6;font-size:clamp(13px,1.3vw,17px)}
+.dcur{position:fixed;left:0;top:0;z-index:100;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));margin:-2px 0 0 -3px}
+.dcur::after{content:"";position:absolute;left:-14px;top:-14px;width:30px;height:30px;border-radius:50%;border:2px solid var(--ice);opacity:0;transform:scale(.4)}
+.dcur.click::after{animation:ripple .55s ease-out}
+@keyframes ripple{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(1.8)}}
+#demobtn{border-color:#2f5878;color:var(--ice)}
+#demobtn.rec{background:var(--ice);color:#06121d}
+@media (prefers-reduced-motion:reduce){.dcap.in,.dchap.in,.dintro,.dend,.dcur.click::after{animation:none}}
+
+/* post-game player report */
+.rep{position:fixed;inset:0;z-index:90;background:rgba(4,7,11,.78);backdrop-filter:blur(5px);overflow:auto;padding:max(16px,3vh) 16px;animation:capin .35s ease}
+.rep-in{max-width:1080px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.rep-head{display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px}
+.rep-head .jersey{min-width:72px;height:72px;font-size:48px}
+.rep-who{min-width:0;flex:1}
+.rep-k{font:500 11px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ice)}
+.rep-who h3{margin:2px 0;font:700 clamp(26px,3.4vw,40px)/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.rep-who .sub{color:var(--mute);font-size:13px}
+.rep-tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:760px){.rep-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rep-t{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px}
+.rep-t span{font:500 10px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.rep-t b{font:700 30px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.rep-t em{font-style:normal;font-size:11px;color:var(--mute);min-height:1em}
+.rep-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px}
+@media (max-width:860px){.rep-grid{grid-template-columns:minmax(0,1fr)}}
+.rep-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.rep-card h4{margin:0 0 8px;font:600 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+#rep_rink{width:100%;aspect-ratio:210/95;display:block}
+.rep-bar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--bg)}
+.rep-bar i{display:block;height:100%}
+.rep-bl{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font:500 11px var(--f-mono);color:var(--mute);margin-top:5px}
+.rep-bl b{color:var(--fg)}
+.rep-shifts{position:relative;height:34px;background:var(--bg);border-radius:6px;overflow:hidden}
+.rep-shifts button{position:absolute;top:6px;bottom:6px;border:0;border-radius:3px;cursor:pointer;opacity:.9}
+.rep-shifts button:hover{opacity:1;outline:2px solid #fff}
+.rep-ev{display:grid;gap:2px;max-height:240px;overflow:auto}
+.rep-e{display:grid;grid-template-columns:70px 110px minmax(0,1fr);gap:8px;align-items:center;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);padding:6px 4px;cursor:pointer;color:var(--fg)}
+.rep-e:hover{background:var(--panel)}
+.rep-e .tm{font:500 12px var(--f-mono);color:var(--mute)}
+.rep-e .ty{display:flex;align-items:center;gap:6px;font:700 14px var(--f-display);text-transform:uppercase}
+.rep-e .ty i{width:9px;height:9px;border-radius:2px}
+.rep-e .nt{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rep-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+/* spotlight, clips, drawing */
+.drawbar{position:absolute;left:8px;right:8px;top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;z-index:5;background:rgba(8,12,17,.85);padding:6px;border-radius:8px}
+.drawbar .btn{padding:4px 10px}
+.drawbar .sw{width:20px;height:20px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.drawbar .sw.on{border-color:#fff;box-shadow:0 0 0 2px #000}
+.recbar{position:absolute;left:10px;bottom:10px;z-index:5;display:flex;gap:8px;align-items:center;background:rgba(160,20,30,.9);color:#fff;padding:5px 10px;border-radius:6px;font:600 13px var(--f-body)}
+.recbar .dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+#clipbtn.rec{background:#a0141e;border-color:#a0141e;color:#fff}
+#drawbtn.on{background:#3b2f00;border-color:#ffd23f;color:#ffd23f}
+.clipform{margin-top:10px;display:grid;gap:8px}
+.clipform .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.clipform input[type=text],.clipform textarea{background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:400 14px var(--f-body);width:100%}
+.clipform textarea{min-height:54px;resize:vertical}
+.clipform label{font:600 12px var(--f-body);color:var(--mute)}
+.pill{display:inline-flex;gap:6px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font:500 12px var(--f-body)}
+.pill button{background:none;border:0;color:var(--mute);cursor:pointer;padding:0 0 0 2px;font-size:13px}
+.tabs{display:inline-flex;gap:4px}
+.tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);font:inherit;cursor:pointer;padding:2px 6px}
+.tab.on{color:var(--fg);border-bottom-color:var(--ice)}
+.clrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.clrow:hover{background:var(--panel-2)}
+.clrow .t{font:700 15px var(--f-display);letter-spacing:.02em}
+.clrow .m{font:500 12px var(--f-mono);color:var(--mute)}
+.clrow .n{font-size:12.5px;color:var(--mute);margin-top:2px}
+.clrow .pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.sharedclip{margin-top:10px;border-color:#ffd23f;display:grid;gap:6px}
+.sharedclip .t{font:700 20px var(--f-display)} .sharedclip .m{font:500 12px var(--f-mono);color:var(--mute)} .sharedclip .n{margin:2px 0;font-size:14px}
+.sharedclip .pills,.sharedclip .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sharedclip input{flex:1 1 260px;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:400 13px var(--f-mono)}
+#cf_voice.rec{background:#a0141e;border-color:#a0141e;color:#fff}
+.back{font:600 12px var(--f-body);color:var(--ice);text-decoration:none}
+.back:hover{text-decoration:underline}
+.clrow .st{display:flex;gap:4px;align-items:flex-start}
+.clrow.playing{background:#152536}
+
+/* ---------- view switch, shift chart, stats page ---------- */
+.viewsw{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.vs{border:0;background:none;color:var(--mute);font:700 15px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;padding:9px 18px;border-radius:999px;cursor:pointer}
+.vs.on{background:var(--ice);color:#06121d}
+.sc{max-height:300px;overflow:auto;position:relative;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.sc-row{display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;height:22px;border-bottom:1px solid rgba(34,48,65,.55)}
+.sc-row.on{background:rgba(143,208,255,.08)}
+.sc-row.on .sc-nm{color:var(--fg)}
+.sc-row.sel{background:rgba(143,208,255,.16)}
+.sc-nm{position:sticky;left:0;z-index:2;background:inherit;display:flex;align-items:center;gap:6px;padding:0 6px;font:600 12px var(--f-body);color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;cursor:pointer;text-align:left;height:100%}
+.sc-nm i{font:700 13px/1 var(--f-display);color:#fff;min-width:24px;text-align:center;border-radius:4px;padding:2px 0;font-style:normal}
+.sc-tr{position:relative;height:100%}
+.sc-tr button{position:absolute;top:5px;height:12px;border:0;border-radius:3px;cursor:pointer;opacity:.85;padding:0}
+.sc-tr button:hover{opacity:1;outline:1px solid #fff}
+.sc-hd{position:sticky;top:0;z-index:3;background:var(--panel);border-bottom:1px solid var(--line);height:20px}
+.sc-hd .sc-nm{background:var(--panel);font:500 10px var(--f-mono);letter-spacing:.1em;text-transform:uppercase}
+.sc-ev{position:absolute;top:3px;width:3px;height:14px;border-radius:1px;cursor:pointer;border:0;padding:0}
+.sc-head{position:absolute;top:0;bottom:0;width:2px;background:var(--fg);pointer-events:none;z-index:1;box-shadow:0 0 6px rgba(231,237,243,.6)}
+.stats{display:flex;flex-direction:column;gap:12px}
+.st-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.st-tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:4px}
+.st-tile span{font:500 10px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.st-tile .vs2{display:flex;align-items:baseline;gap:8px;font:700 28px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.st-tile .vs2 em{font:500 12px var(--f-mono);font-style:normal;color:var(--mute)}
+.st-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:12px}
+.st-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1050px){.st-grid,.st-grid3{grid-template-columns:minmax(0,1fr)}}
+.st-c{width:100%;display:block}
+.st-cmp{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:4px 10px;align-items:center;margin-bottom:10px}
+.st-cmp .l{font:700 18px var(--f-display);font-variant-numeric:tabular-nums}
+.st-cmp .r{font:700 18px var(--f-display);text-align:right;font-variant-numeric:tabular-nums}
+.st-cmp .m{display:grid;gap:4px}
+.st-cmp .m span{font:500 10px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-align:center}
+.st-cmp .bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel-2)}
+.st-tablewrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+.st-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.st-table th{position:sticky;top:0;background:var(--panel-2);font:500 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-align:right;padding:8px;cursor:pointer;white-space:nowrap;user-select:none}
+.st-table th:nth-child(-n+2){text-align:left}
+.st-table th.on{color:var(--ice)}
+.st-table td{padding:7px 8px;border-top:1px solid var(--line);text-align:right;font:500 13px var(--f-mono);white-space:nowrap}
+.st-table td:nth-child(-n+2){text-align:left}
+.st-table tbody tr{cursor:pointer}
+.st-table tbody tr:hover{background:rgba(143,208,255,.07)}
+.st-table tr.low{opacity:.5}
+.st-table .nm{font:700 15px var(--f-display);letter-spacing:.03em;text-transform:uppercase}
+.st-table .no{display:inline-block;min-width:28px;text-align:center;border-radius:5px;padding:2px 4px;color:#fff;font:700 15px var(--f-display)}
+.st-table .up{color:var(--ok)} .st-table .dn{color:var(--goal)}
+.st-mini{display:inline-flex;width:90px;height:8px;border-radius:4px;overflow:hidden;background:var(--panel-2);vertical-align:middle}
+.st-tilt{display:grid;gap:4px;max-height:340px;overflow:auto}
+.st-trow{display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);align-items:center;gap:4px;cursor:pointer;font:600 12px var(--f-body);color:var(--mute)}
+.st-trow:hover{color:var(--fg)}
+.st-trow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-trow .dz{display:flex;justify-content:flex-end}
+.st-trow .dz i,.st-trow .oz i{display:block;height:10px;border-radius:2px}
+
+.tagbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.tb-l{font:500 10px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-right:4px}
+#tagbtns{display:flex;flex-wrap:wrap;gap:6px}
+.tb-r{margin-left:auto}
+.tchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:5px 10px;cursor:pointer;font:600 12px var(--f-body);color:var(--fg)}
+.tchip i{width:9px;height:9px;border-radius:50%}
+.tchip kbd{font:500 10px var(--f-mono);color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.tchip:hover{border-color:var(--ice)}
+.review{border-color:var(--ice);display:grid;gap:10px}
+.review .rv-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.review .rv-q{font:700 22px/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase}
+.review .rv-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.review select{min-width:240px}
+.rv-prog{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.rv-prog i{display:block;height:100%;background:var(--ok)}
+.rep-sh{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:14px;border-bottom:1px solid var(--line)}
+.rep-sh button{flex:1;min-width:8px;border:0;border-radius:3px 3px 0 0;cursor:pointer;position:relative;padding:0}
+.rep-sh button span{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font:500 9px var(--f-mono);color:var(--mute);white-space:nowrap}
+.rep-flags{display:grid;gap:6px;margin-top:10px}
+.rep-flag{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.rep-flag b{font:700 12px var(--f-mono);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.st-links{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.st-link{display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:600 13px var(--f-body)}
+.st-link .no{display:inline-block;min-width:26px;text-align:center;border-radius:5px;padding:1px 3px;color:#fff;font:700 14px var(--f-display);margin-right:6px}
+.dlbar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:6;background:rgba(10,14,19,.9);border:1px solid var(--goal);border-radius:999px;padding:6px 14px;font:600 12px var(--f-mono);display:flex;gap:10px;align-items:center}
+.dlbar .dot{width:9px;height:9px;border-radius:50%;background:var(--goal);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+.dcap.fx{position:fixed;left:0;right:0;margin:0 auto;width:fit-content;bottom:28px;z-index:95;max-width:min(720px,calc(100vw - 32px))}
+.dchap.fx{position:fixed;z-index:96}
+</style>
+
+<div class="dcur" id="dcur" hidden aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 2l15 11-6.5 1.2L16.5 22l-3 1.3-3.6-7.6L4 20z" fill="#fff" stroke="#0a0e13" stroke-width="1.4" stroke-linejoin="round"/></svg></div>
+<div class="rep" id="rep" hidden><div class="rep-in" id="rep_in" role="dialog" aria-modal="true" aria-label="Player game report"></div></div>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <a class="back" href="/games" target="_top">← All games</a>
+      <div class="eyebrow" id="eyebrow">Film room · AI tracking</div>
+      <h1 id="title">Loading game…</h1>
+    </div>
+    <div class="viewsw" role="tablist" aria-label="View"><button class="vs on" id="v_film" role="tab" aria-selected="true">Film</button><button class="vs" id="v_stats" role="tab" aria-selected="false">Stats</button></div>
+    <div class="score" id="score"></div>
+    <div class="clock"><span>Game video</span><b id="gametime">–:––:––</b></div>
+  </div>
+
+  <div class="main" id="filmview">
+    <div class="leftcol">
+      <div class="stage" id="stage">
+        <video id="vid" muted playsinline preload="auto"></video>
+        <canvas id="ov" aria-label="Tracking overlay: click a player to follow them"></canvas>
+        <div class="drawbar" id="drawbar" hidden>
+          <button class="btn on" data-tool="pen">Pen</button><button class="btn" data-tool="arrow">Arrow</button><button class="btn" data-tool="circle">Circle</button>
+          <span class="sw" data-col="#ffd23f" style="background:#ffd23f"></span><span class="sw" data-col="#ff4d4d" style="background:#ff4d4d"></span><span class="sw" data-col="#ffffff" style="background:#fff"></span><span class="sw" data-col="#8fd0ff" style="background:#8fd0ff"></span>
+          <button class="btn" id="d_undo">Undo</button><button class="btn" id="d_clear">Clear</button><button class="btn primary" id="d_done">Done</button><button class="btn" id="d_cancel">Cancel</button>
+        </div>
+        <div class="lockbar" id="lockbar" hidden role="status" aria-live="polite"><span class="lk-num" id="lk_num"></span><span class="lk-txt"><span class="lk-top"><span class="lk-tag">Following</span><span id="lk_team"></span></span><b id="lk_name"></b><span id="lk_state"></span></span><button class="lk-x" id="lk_x" title="Stop following (Esc)" aria-label="Stop following">✕</button></div>
+        <div class="dcap" id="dcap" hidden><b id="dcap_t"></b><span id="dcap_s"></span></div>
+        <div class="dchap" id="dchap" hidden><span id="dchap_n"></span><b id="dchap_t"></b></div>
+        <div class="dintro" id="dintro" hidden><div class="dend-in"><div class="dend-k">Film Room · AI tracking</div><div class="dend-t" id="dend_t">Game film</div><div class="dend-s">Every player tracked, named and tagged automatically</div></div></div>
+        <div class="dend" id="dend" hidden><div class="dend-in"><div class="dend-k">Film Room · AI tracking</div><div class="dend-t">Your league. Every game. Every player.</div><div class="dend-s">Tracked, named and tagged automatically, ready to coach and share.</div></div></div>
+        <div class="dlbar" id="dlbar" hidden><span class="dot"></span><span id="dltext">Recording</span><button class="ib" id="dlstop">Cancel</button></div>
+        <div class="recbar" id="recbar" hidden><span class="dot"></span><span id="rectext">Clip</span></div>
+        <div class="overlay-msg" id="msg"><div id="msgtext">Loading tracking data…</div></div>
+      </div>
+      <div class="transport" role="toolbar" aria-label="Playback">
+        <button class="btn primary" id="play" title="Play / pause (space)">Play</button>
+        <button class="btn" id="back" title="Back 5 seconds (←)">−5s</button>
+        <button class="btn" id="fwd" title="Forward 5 seconds (→)">+5s</button>
+        <button class="btn" id="stepb" title="Back one step (,)">‹</button>
+        <button class="btn" id="stepf" title="Forward one step (.)">›</button>
+        <select class="btn" id="rate" aria-label="Playback speed">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option>
+        </select>
+        <span class="sep"></span>
+        <button class="btn" id="clipbtn" title="Start a clip here, play to where it should end, click again (C)">Clip</button>
+        <button class="btn" id="demobtn" title="Play a guided tour of every feature (about 3½ minutes)">▶ Demo</button>
+        <button class="btn" id="drawbtn" title="Pause and draw on the video (D)">Draw</button>
+        <span class="sep"></span>
+        <select class="btn" id="tags" aria-label="Name tags">
+          <option value="all">Tags: names</option><option value="num">Tags: numbers</option><option value="sel">Tags: followed only</option><option value="none">Tags: off</option>
+        </select>
+        <button class="btn on" id="tBoxes" aria-pressed="true">Boxes</button>
+        <button class="btn on" id="tSpeed" aria-pressed="true">Speed</button>
+        <button class="btn" id="tRefs" aria-pressed="false">Refs</button>
+        <button class="btn" id="tShape" aria-pressed="false" title="Show a team's shape and spacing on the ice (K)">Shape: off</button>
+      </div>
+      <div class="tagbar" id="tagbar" role="toolbar" aria-label="Tag this moment"><span class="tb-l">Tag this moment</span><span id="tagbtns"></span><span class="tb-r"><button class="btn" id="revbtn" title="Put names on players the AI couldn't identify">Name the unknowns</button></span></div>
+      <div class="card review" id="review" hidden></div>
+      <div class="card sharedclip" id="sharedclip" hidden></div>
+      <div class="card clipform" id="clipform" hidden></div>
+      <canvas id="timeline" aria-label="Timeline: click to jump"></canvas>
+      <div class="tl-legend" id="legend">
+        <span><i style="background:#2a3a4c"></i>Live play tracked</span>
+        <span><i style="background:var(--ice)"></i>Followed player on screen</span>
+        <span class="kbd">Space play · ← → 5s · , . step · click the player again or Esc to stop following</span>
+      </div>
+
+      <div class="card" id="shiftcard">
+        <h2><span>Shift chart · every player</span><span class="acts"><select class="btn" id="sc_team" aria-label="Team"><option value="">Both teams</option></select></span></h2>
+        <div class="sc" id="shiftchart"><div class="empty">Loading shifts…</div></div>
+        <div class="tl-legend"><span>Bars are shifts measured by the AI · glowing rows are on the ice now · click a bar to watch it, a name to open his report</span></div>
+      </div>
+
+      <div class="card evcard">
+        <h2><span class="tabs"><button class="tab on" id="tab_ev">Events <span id="evcount"></span></button><button class="tab" id="tab_cl">Clips <span id="clcount"></span></button></span><span class="acts"><button class="btn" id="playall">Play these</button><button class="btn" id="stopall" hidden>Stop playlist</button></span></h2>
+        <div id="evpane"><div class="chips" id="typechips"></div>
+        <div class="filters">
+          <select class="btn" id="fteam" aria-label="Team"><option value="">Both teams</option></select>
+          <select class="btn" id="fplayer" aria-label="Player"><option value="">All players</option></select>
+          <span class="saveinfo" id="saveinfo"></span>
+        </div>
+        <div class="evlist" id="evlist"><div class="empty" style="padding:10px 0">Loading events…</div></div>
+        </div>
+        <div id="clpane" hidden><div class="filters"><select class="btn" id="cltag" aria-label="Tag"><option value="">All tags</option></select><select class="btn" id="clplayer" aria-label="Player"><option value="">All players</option></select></div><div class="evlist" id="cllist"></div></div>
+        <p class="hint" style="margin:8px 0 0">Add a tag at the current moment: <b>G</b> goal · <b>S</b> shot · <b>V</b> save · <b>F</b> faceoff · <b>E</b> zone entry · <b>H</b> hit · <b>B</b> blocked shot · <b>P</b> penalty. It goes to the player you're following.</p>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2><span>Rink · live positions</span><span id="rinkinfo"></span></h2>
+        <canvas id="rink"></canvas>
+      </div>
+      <div class="card" id="pcard">
+        <h2><span>Following</span><span><button class="btn" id="unfollow" hidden>Stop following</button></span></h2>
+        <div id="pbody" class="empty">Click any player on the video, on the rink, or in the on-ice list to follow them.</div>
+      </div>
+      <div class="card">
+        <h2><span>On the ice now</span><span id="onicecount"></span></h2>
+        <div class="onice" id="onice"><div class="empty">Press play.</div></div>
+      </div>
+      <div class="card" id="cmtcard" hidden>
+        <h2><span>Commentary</span><span id="cmtinfo"></span></h2>
+        <div id="cmt"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats" id="statsview" hidden>
+    <div class="st-tiles" id="st_tiles"></div>
+    <div class="st-grid">
+      <div class="card"><h2><span>Team pace · average skating speed through the period</span><span id="st_paceinfo"></span></h2><canvas id="st_pace" class="st-c" style="height:230px"></canvas><div class="tl-legend" id="st_pacelegend"></div></div>
+      <div class="card"><h2><span>Team comparison</span></h2><div id="st_cmp"></div></div>
+    </div>
+    <div class="card"><h2><span>Skater workload</span><span class="acts"><select class="btn" id="st_team" aria-label="Team"><option value="">Both teams</option></select></span></h2>
+      <div class="st-tablewrap"><table class="st-table" id="st_table"></table></div>
+      <div class="hint" style="margin-top:6px">Click a column to sort, a player to open his game report. Pace shift compares his speed in the second half of the period with the first half (a drop can mean fatigue). Faded rows: under a minute tracked, so numbers are rough.</div></div>
+    <div class="st-grid3">
+      <div class="card"><h2><span>Zone tilt</span><span class="hint">offensive vs defensive time</span></h2><div id="st_tilt" class="st-tilt"></div></div>
+      <div class="card"><h2><span>Motor map</span><span class="hint">work rate vs pace</span></h2><canvas id="st_motor" class="st-c" style="height:300px"></canvas><div class="hint">Right = more feet per minute on ice · up = faster average speed</div></div>
+      <div class="card"><h2><span>Role map</span><span class="hint">where he spends his shifts</span></h2><canvas id="st_role" class="st-c" style="height:300px"></canvas><div class="hint">Right = more offensive-zone time · up = more defensive-zone time</div></div>
+    </div>
+    <div class="st-grid">
+      <div class="card"><h2><span>Shot map · shot quality</span><span class="hint" id="st_shotinfo"></span></h2><canvas id="st_shots" class="st-c" style="height:300px"></canvas>
+        <div class="tl-legend"><span><i style="background:#fff;border-radius:50%;width:12px;height:12px"></i>Big = from the slot (high danger)</span><span><i style="background:#fff;border-radius:50%;width:6px;height:6px"></i>Small = from the outside</span><span>Ring = goal · click a shot to watch it</span></div></div>
+      <div class="card"><h2><span>Shot quality</span></h2><div id="st_xg"></div>
+        <h2 style="margin-top:16px"><span>Highlight reels</span></h2><div class="rv-row" id="st_reels"></div><div class="hint" style="margin-top:6px">Every goal and dangerous chance, back to back, made by the AI.</div></div>
+    </div>
+    <div class="st-grid">
+      <div class="card"><h2><span id="st_h0">Team heat map</span></h2><canvas id="st_heat0" class="st-c" style="height:220px"></canvas></div>
+      <div class="card"><h2><span id="st_h1">Team heat map</span></h2><canvas id="st_heat1" class="st-c" style="height:220px"></canvas></div>
+    </div>
+    <div class="card"><h2><span>Send players their reports</span><span class="acts"><button class="btn" id="st_copyall">Copy all links</button></span></h2>
+      <div class="hint" style="margin-bottom:8px">Each link opens this film room straight on that player's report: his numbers, heat map, shifts and highlight reel. Paste them into your team chat.</div>
+      <div class="st-links" id="st_links"></div></div>
+  </div>
+
+  <p class="note" id="foot">Positions come from the broadcast camera, mapped onto the rink. Names come from jersey numbers read off the video and matched to the roster; fix any wrong name from the Following card. Events are tagged by the AI from the tracking, the scoreboard and the commentary; check them, fix them, or add your own.</p>
+</div>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const MPH=0.681818;
+const SHARE_BASE=location.origin+location.pathname;   // this film room's own link, filled in when it is published
+let D=null, F=[], FT=[], PEOPLE=[], SEGS=[], T=0, segI=0, playing=false, selR=null, selG=null, pendingSeek=null;
+let showBoxes=true, showSpeed=true, showRefs=false, tagMode="all";
+let ROSTER=[], P2R=[], NAMES={}, AINAMES={}, AIGUESS={}, AIEV=[], EDITS={}, TRANS=[], db=null, canWrite=true;
+const vid=$("#vid"), ov=$("#ov"), octx=ov.getContext("2d"), rk=$("#rink"), rctx=rk.getContext("2d"), tl=$("#timeline"), tctx=tl.getContext("2d");
+
+const TYPES={
+  goal:{label:"Goal",col:"#ff5d4f",key:"g",on:true}, shot:{label:"Shot",col:"#ffa94d",key:"s",on:true}, save:{label:"Save",col:"#5fd39a",key:"v",on:true},
+  faceoff:{label:"Faceoff",col:"#8fd0ff",key:"f",on:true}, zone_entry:{label:"Zone entry",col:"#4fd1c5",key:"e",on:true},
+  hit:{label:"Hit",col:"#c084fc",key:"h",on:true}, block:{label:"Blocked shot",col:"#94a3b8",key:"b",on:true}, penalty:{label:"Penalty",col:"#facc15",key:"p",on:true},
+  takeaway:{label:"Takeaway",col:"#34d399",key:"t",on:true}, giveaway:{label:"Giveaway",col:"#f472b6",key:"w",on:true}, chance:{label:"Scoring chance",col:"#fb923c",key:"x",on:true}, note:{label:"Note",col:"#e2e8f0",key:"n",on:true},
+  stoppage:{label:"Whistle",col:"#8796a8",on:false}, period_end:{label:"Period end",col:"#8796a8",on:false}, shift:{label:"Shift",col:"#4b6684",on:false},
+};
+const ON={}; for(const k in TYPES) ON[k]=TYPES[k].on;
+
+/* ---------- helpers ---------- */
+const fmtHMS=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
+const fmtMS=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+function hexRgb(h){h=h.replace("#","");return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function brighten(h){let [r,g,b]=hexRgb(h);const l=0.2126*r+0.7152*g+0.0722*b;const k=l<130?Math.min(2.2,150/Math.max(l,30)):1;
+  const mix=v=>Math.round(Math.min(255,v*k+(k>1?28:0)));return `rgb(${mix(r)},${mix(g)},${mix(b)})`}
+function ub(arr,x){let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1;if(arr[m]<=x)lo=m+1;else hi=m}return lo}
+const lastName=n=>{const p=String(n||"").trim().split(/\s+/);return p.length>1?p[p.length-1]:p[0]};
+const teamCol=t=>D&&D.teams[t]?D.teamColor[t]:"#9aa6b2";
+const abbr=t=>D&&D.teams[t]?D.teams[t].abbr:"";
+/* who is in a box: a correction wins, then the AI's read, else nobody */
+function whoOf(b){ const n=NAMES["g"+b[0]]; if(n!=null) return n<0?null:n; if(AIKIND[b[0]]==="goalie") return AINAMES[b[0]]; if(AIBLOCK[b[0]]) return null; const p=b[1]>=0?P2R[b[1]]:null; if(p!=null) return p; const a=AINAMES[b[0]]; return a==null?null:a }
+function howNamed(b){ if(NAMES["g"+b[0]]!=null) return "you"; if(AIKIND[b[0]]==="goalie") return "goalie"; if(!AIBLOCK[b[0]]&&b[1]>=0&&P2R[b[1]]!=null) return "number"; return AINAMES[b[0]]!=null&&AINAMES[b[0]]>=0?(AIKIND[b[0]]||"match"):null }
+let AIKIND={}, AIBLOCK={}, CANDS={};
+/* After you name a player: walk through the other unnamed pieces of his shift that the AI thinks could be him, most likely first.
+   You say yes or no to each; nothing is named without you. */
+let SQ=null;
+function startShiftCheck(r,g){
+  const p=PIECE[g]; if(!p||!Object.keys(CANDS).length) { SQ=null; return }
+  const t0=p.t0-60, t1=p.t1+60;
+  const his=Object.values(PIECE).filter(q=>pieceName(q.gid)===r);
+  const items=[];
+  for(const [gs,c] of Object.entries(CANDS)){
+    const q=PIECE[+gs]; if(!q||q.t1<t0||q.t0>t1||q.team!==p.team||pieceName(+gs)!=null) continue;
+    const k=c.findIndex(x=>x[0]===r); if(k<0||k>2) continue;
+    if(his.some(h=>Math.min(h.t1,q.t1)-Math.max(h.t0,q.t0)>0.3)) continue;          // he was somewhere else then
+    items.push({g:+gs,t:q.t0,mid:(q.t0+q.t1)/2,s:c[k][1]-0.12*k});
+  }
+  items.sort((a,b)=>b.s-a.s);
+  SQ=items.length?{r,items:items.slice(0,15),i:0,yes:0}:null; renderSQ();
+}
+function renderSQ(){
+  const el=$("#sq"); if(!el) return;
+  if(!SQ||SQ.r!==selR){ el.innerHTML=""; HLG=null; return }
+  if(SQ.i>=SQ.items.length){ el.innerHTML=`<div class="sq"><b>Shift check done.</b> <span class="hint">${SQ.yes} more piece${SQ.yes===1?"":"s"} named ${esc(lastName(ROSTER[SQ.r].name))}.</span></div>`; HLG=null; return }
+  const it=SQ.items[SQ.i];
+  el.innerHTML=`<div class="sq"><div><b>Is this ${esc(lastName(ROSTER[SQ.r].name))} too?</b> <span class="hint">${SQ.i+1} of ${SQ.items.length} in this shift · ${fmtHMS(D.t0+it.t)} · highlighted on the video</span></div>
+    <div class="sq-btns"><button class="btn primary" id="sq_yes">Yes, that's him</button><button class="btn" id="sq_no">No</button><button class="btn" id="sq_show">Show again</button><button class="btn" id="sq_stop">Stop</button></div></div>`;
+  HLG=it.g; vid.pause(); playing=false; seek(Math.max(0,it.mid-1),false); vid.pause(); draw();
+  $("#sq_yes").onclick=()=>{ saveNames(chainOf(it.g).filter(g=>g===it.g||pieceName(g)==null),SQ.r); SQ.yes++; SQ.i++; renderSQ() };
+  $("#sq_no").onclick=()=>{ SQ.i++; renderSQ() };
+  $("#sq_show").onclick=()=>{ seek(Math.max(0,it.mid-1),true) };
+  $("#sq_stop").onclick=()=>{ SQ=null; renderSQ() };
+}
+function ignored(b){ return NAMES["g"+b[0]]===-1 }
+function boxTeam(b){ const r=whoOf(b); if(r!=null) return ROSTER[r].team; const k=b[10]; return (k===0||k===1)&&D.teamNames?D.teamNames[k]:null }
+const rName=r=>r==null||!ROSTER[r]?"":`${ROSTER[r].number!=null?"#"+ROSTER[r].number+" ":""}${ROSTER[r].name}`;
+
+/* ---------- load ---------- */
+Promise.all([fetch("filmroom_data.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}),
+             fetch("events_ai.json").then(r=>r.ok?r.json():{events:[],roster:[],transcript:[]}).catch(()=>({events:[],roster:[],transcript:[]}))])
+  .then(([d,ev])=>init(d,ev)).catch(e=>{$("#msgtext").textContent="The tracking data didn't load. Reload the page to try again.";console.error(e)});
+
+function init(d,ev){
+  D=d; F=d.frames; FT=F.map(f=>f[0]); PEOPLE=d.people; SEGS=d.segments.filter(x=>x.dur>=0.5);
+  D.teamColor={}; for(const t in d.teams) D.teamColor[t]=brighten(d.teams[t].color);
+  D.teamNames=d.team_names||Object.keys(d.teams);
+  D.dur=SEGS.length?SEGS[SEGS.length-1].start+SEGS[SEGS.length-1].dur:(FT.length?FT[FT.length-1]:0);
+  D.dt=1/(d.fps||10);
+  ROSTER=(ev.roster&&ev.roster.length?ev.roster:PEOPLE.filter(p=>p.identified).map(p=>({team:p.team,number:p.number,name:p.name,pos:p.pos})));
+  P2R=PEOPLE.map(p=>p.identified?ROSTER.findIndex(r=>r.team===p.team&&r.number===p.number):null).map(i=>i<0?null:i);
+  AIEV=(ev.events||[]).map(e=>({...e, r:e.r!==undefined?e.r:(e.person!=null?P2R[e.person]:null), rs:e.rs!==undefined?e.rs:(e.people||[]).map(p=>P2R[p]).filter(x=>x!=null)}));
+  TRANS=ev.transcript||[]; CANDS=ev.cands||{};
+  for(const [g,v] of Object.entries(ev.names_ai||{})){ if(v[2]) AIBLOCK[+g]=1; if(v[0]<0) continue; if(v[1]==="mid") AIGUESS[+g]=v[0]; else { AINAMES[+g]=v[0]; AIKIND[+g]=v[1]==="goalie"?"goalie":"match" } }
+  $("#title").textContent=d.title;
+  $("#eyebrow").textContent=`Film room · ${fmtHMS(d.t0)}–${fmtHMS(d.t0+D.dur)} of the game video`;
+  $("#score").innerHTML=D.teamNames.map(t=>`<span class="tm"><span class="chip" style="background:${D.teamColor[t]}"></span>${esc(d.teams[t].abbr||t)}<b>${d.teams[t].score??""}</b></span>`).join("");
+  buildPieces(); buildFilters(); precompute();
+  if(TRANS.length){$("#cmtcard").hidden=false; buildTranscript()}
+  if(!SEGS.length){$("#msgtext").textContent="No video parts were published with this data.";return}
+  $("#msgtext").innerHTML=`<button class="bigplay" id="go">Play film</button><div class="hint">${F.length.toLocaleString()} tracked moments · ${AIEV.filter(e=>e.type!=="shift").length} AI-tagged events</div>`;
+  $("#go").onclick=()=>{$("#msg").hidden=true;play(true)};
+  loadSeg(0,0,false); resize(); renderEvents(); renderClips(); tick(); connectDb(); buildShiftChart(); buildTagBar(); openWantedPlayer();
+}
+
+/* ---------- pieces of video and the chains that join them ---------- */
+// A "piece" is one continuous track (one box id). When a player is lost for a moment the tracker starts a new piece.
+// We chain a piece to the one that starts right after it, on the same team, close by on the rink: very likely the same player.
+let PIECE={}, NEXT={}, PREV={};
+function buildPieces(){
+  PIECE={};
+  for(const [t,bs] of F) for(const b of bs){
+    if(b[2]===2) continue;
+    let p=PIECE[b[0]]; if(!p) p=PIECE[b[0]]={gid:b[0],t0:t,t1:t,p0:null,p1:null,team:null,person:b[1],box0:b,box1:b};
+    p.t1=t; p.box1=b; if(b[7]!=null){ if(!p.p0) p.p0=[b[7],b[8]]; p.p1=[b[7],b[8]] } if(b[10]===0||b[10]===1) p.team=b[10];
+    if(b[1]>=0) p.person=b[1];
+  }
+  const ps=Object.values(PIECE), cands=[];
+  for(const a of ps) for(const b of ps){
+    if(a===b) continue; const gap=b.t0-a.t1; if(gap<0||gap>2.5) continue;
+    if(a.team!=null&&b.team!=null&&a.team!==b.team) continue;
+    const ra=a.person>=0?P2R[a.person]:null, rb=b.person>=0?P2R[b.person]:null; if(ra!=null&&rb!=null&&ra!==rb) continue;
+    let d;
+    if(a.p1&&b.p0) d=Math.hypot(a.p1[0]-b.p0[0],a.p1[1]-b.p0[1]);
+    else { const A=a.box1,B=b.box0; d=Math.hypot((A[3]+A[5])/2-(B[3]+B[5])/2,(A[4]+A[6])/2-(B[4]+B[6])/2)/8 }   // screen pixels → rough feet
+    if(d<15) cands.push([d+gap*4,a.gid,b.gid]);
+  }
+  cands.sort((x,y)=>x[0]-y[0]); NEXT={}; PREV={};
+  for(const [,a,b] of cands) if(NEXT[a]==null&&PREV[b]==null){ NEXT[a]=b; PREV[b]=a }
+}
+function chainOf(gid){ const out=[gid]; let g=gid,n=0; while(PREV[g]!=null&&n++<500){g=PREV[g];out.unshift(g)} g=gid;n=0; while(NEXT[g]!=null&&n++<500){g=NEXT[g];out.push(g)} return out }
+function pieceName(gid){ const p=PIECE[gid]; return p?whoOf(p.box1):null }
+function sameAIpieces(gid){ const p=PIECE[gid]; if(!p||p.person<0||P2R[p.person]==null) return []; return Object.values(PIECE).filter(q=>q.person===p.person).map(q=>q.gid) }
+
+/* ---------- saved corrections (shared) ---------- */
+async function connectDb(){
+  const info=$("#saveinfo");
+  try{ db=window.claude&&await window.claude.use("db") }catch(e){ db=null }
+  if(!db){ info.textContent="Changes stay on this screen only (saving isn't available here)."; return }
+  try{ const user=await window.claude.use("user"); const w=user&&user.can?await user.can("data.write"):null; if(w===false){canWrite=false; info.textContent="View only: you can't save changes on this page."} }catch(e){}
+  if(canWrite) info.textContent="Changes are saved for everyone who opens this page.";
+  db.collection("clips").onSnapshot(s=>{ CLIPS={}; for(const d of s.docs) CLIPS[d.id]=d.data(); renderClips(); drawTimeline(); drawTimelineHead(); openWantedClip() },()=>{});
+  db.collection("shared").onSnapshot(s=>{ const d=s.docs.find(x=>x.id==="latest"); LATEST=d?d.data():null; openWantedClip() },()=>{});
+  db.collection("edits").onSnapshot(s=>{ EDITS={}; for(const d of s.docs) EDITS[d.id]=d.data(); renderEvents(); drawTimeline(); draw() },()=>{});
+  db.collection("names").onSnapshot(s=>{ NAMES={}; for(const d of s.docs){const v=d.data(); NAMES[d.id]=v.r} precompute(); lastListKey=""; lastCardKey=""; drawTimeline(); draw(); renderEvents() },()=>{});
+}
+async function saveEdit(id,obj){ EDITS[id]=obj; renderEvents(); drawTimeline(); draw();
+  if(db&&canWrite){ try{ await db.doc("edits/"+id).set(obj) }catch(e){ flash("That change couldn't be saved. It stays on this screen.") } } }
+async function saveName(gid,r){ return saveNames([gid],r) }
+async function saveNames(gids,r){ for(const g of gids) NAMES["g"+g]=r; precompute(); lastListKey=""; lastCardKey=""; drawTimeline(); draw(); renderEvents();
+  const msg=gids.length>1?`Named ${gids.length} pieces of video as ${r>=0?ROSTER[r].name:"not a player"}.`:"";
+  if(db&&canWrite){ try{ const at=Date.now(); await Promise.all(gids.map(g=>db.doc("names/g"+g).set({r,at}))); if(msg) flash(msg+" Saved for everyone.") }catch(e){ flash("That name couldn't be saved. It stays on this screen.") } }
+  else if(msg) flash(msg) }
+function flash(m){ const i=$("#saveinfo"); i.textContent=m; }
+
+/* ---------- per-player running totals ---------- */
+function precompute(){
+  const n=ROSTER.length; D.acc=ROSTER.map(()=>({t:[],dist:[],top:[],seen:[]})); D.pres=ROSTER.map(()=>[]);
+  const last=new Array(n).fill(-1), dist=new Array(n).fill(0), top=new Array(n).fill(0), seen=new Array(n).fill(0);
+  for(const [t,boxes] of F){
+    for(const b of boxes){const r=whoOf(b); if(r==null||b[2]===2) continue;
+      const step=last[r]>=0?Math.min(t-last[r],0.25):0; seen[r]+=step||D.dt*0.5;
+      if(b[9]!=null){dist[r]+=b[9]/MPH*step; if(b[9]>top[r])top[r]=b[9]}
+      last[r]=t; const a=D.acc[r]; a.t.push(t);a.dist.push(dist[r]);a.top.push(top[r]);a.seen.push(seen[r]);
+      const pr=D.pres[r]; if(pr.length&&t-pr[pr.length-1][1]<=1.0)pr[pr.length-1][1]=t; else pr.push([t,t]);
+    }
+  }
+  D.cover=[]; for(const t of FT){const c=D.cover; if(c.length&&t-c[c.length-1][1]<=1.0)c[c.length-1][1]=t; else c.push([t,t])}
+}
+
+/* ---------- video segments ---------- */
+function segAt(t){let i=0;for(let k=0;k<SEGS.length;k++) if(t>=SEGS[k].start) i=k; return i}
+function loadSeg(i,offset,autoplay){ segI=i; const want=SEGS[i].file;
+  if(!vid.src.endsWith(want)){vid.src=want; pendingSeek={off:offset,play:autoplay}; vid.load();}
+  else {vid.currentTime=offset; if(autoplay) vid.play().catch(()=>{});} }
+vid.addEventListener("loadedmetadata",()=>{if(pendingSeek){vid.currentTime=Math.min(pendingSeek.off,vid.duration-0.05);vid.playbackRate=+$("#rate").value;if(pendingSeek.play)vid.play().catch(()=>{});pendingSeek=null}});
+vid.addEventListener("ended",()=>{if(segI<SEGS.length-1&&playing) loadSeg(segI+1,0,true); else {playing=false;updPlay()}});
+vid.addEventListener("play",()=>{playing=true;updPlay()});
+vid.addEventListener("pause",()=>{if(!vid.ended){playing=false;updPlay()}});
+function seek(t,andPlay){t=Math.max(0,Math.min(D.dur-0.05,t)); const i=segAt(t); loadSeg(i,t-SEGS[i].start,andPlay||playing); T=t; $("#msg").hidden=true; draw()}
+function play(force){ if(force||vid.paused){vid.playbackRate=+$("#rate").value; vid.play().catch(()=>{})} else vid.pause()}
+function updPlay(){$("#play").textContent=playing?"Pause":"Play"}
+
+/* ---------- frames ---------- */
+function frameAt(t){
+  const i=ub(FT,t)-1; if(i<0) return null; const f0=F[i];
+  if(t-f0[0]>0.35) return null;
+  const f1=F[i+1]; if(!f1||f1[0]-f0[0]>0.35) return {t:f0[0],boxes:f0[1].map(b=>b.slice())};
+  const a=(t-f0[0])/(f1[0]-f0[0]); const m=new Map(f1[1].map(b=>[b[0],b])); const out=[];
+  for(const b of f0[1]){const c=m.get(b[0]); if(!c){out.push(b.slice());continue}
+    const r=b.slice(); for(const k of [3,4,5,6,7,8]) if(b[k]!=null&&c[k]!=null) r[k]=b[k]+(c[k]-b[k])*a;
+    if(b[9]!=null&&c[9]!=null) r[9]=b[9]+(c[9]-b[9])*a; out.push(r)}
+  return {t,boxes:out};
+}
+function puckAt(t){const P=D.puck; if(!P.length) return null; let lo=0,hi=P.length; while(lo<hi){const m=(lo+hi)>>1; if(P[m][0]<=t) lo=m+1; else hi=m}
+  const p=P[lo-1]; return p&&t-p[0]<0.4&&p[1]!=null?p:null}
+
+/* ---------- drawing ---------- */
+let vrect={x:0,y:0,w:1,h:1}, dpr=1;
+function resize(){
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  for(const c of [ov,rk,tl]){const r=c.getBoundingClientRect(); c.width=Math.max(1,Math.round(r.width*dpr)); c.height=Math.max(1,Math.round(r.height*dpr))}
+  const W=ov.width/dpr,H=ov.height/dpr, ar=(D&&D.size?D.size[0]/D.size[1]:16/9);
+  let w=W,h=W/ar; if(h>H){h=H;w=H*ar} vrect={x:(W-w)/2,y:(H-h)/2,w,h};
+  lastCardKey=""; drawTimeline(); draw();
+}
+window.addEventListener("resize",resize);
+let cur=null;
+function draw(){ if(!D) return; cur=frameAt(T); LAST=lastSeen(); drawOverlay(); drawRink(); updateLists(); updateCard(); updateLock(); drawTimelineHead(); markNow(); updShiftChart(); $("#gametime").textContent=fmtHMS(D.t0+T) }
+/* where the followed player was last seen (rink position + how long ago), looking back up to 20 s */
+let LAST=null, lockKey="";
+function lastSeen(){ if(selR==null&&selG==null) return null; const i1=ub(FT,T);
+  for(let i=i1-1;i>=0&&FT[i]>=T-20;i--){ for(const b of F[i][1]) if(isSel(b)&&!ignored(b)) return {ago:T-FT[i],rx:b[7],ry:b[8],v:b[9],on:i===i1-1&&cur&&cur.boxes.some(isSel)} }
+  return {ago:null} }
+function updateLock(){ const lb=$("#lockbar"); if(selR==null&&selG==null){ lb.hidden=true; return }
+  lb.hidden=false; const on=cur&&cur.boxes.some(b=>isSel(b)&&!ignored(b)); const nowB=on?cur.boxes.find(isSel):null;
+  const p=selR!=null?ROSTER[selR]:null, col=p?teamCol(p.team):"#9aa6b2";
+  const key=(selR!=null?"r"+selR:"g"+selG); if(lockKey!==key){ lockKey=key;
+    $("#lk_num").textContent=p&&p.number!=null?p.number:"?"; $("#lk_num").style.background=col;
+    $("#lk_name").textContent=p?p.name:"Unidentified skater"; $("#lk_team").textContent=p?(abbr(p.team)||p.team):"" }
+  lb.classList.toggle("off",!on);
+  $("#lk_state").textContent = on ? (nowB&&nowB[9]!=null&&showSpeed ? nowB[9].toFixed(0)+" mph" : "On screen")
+    : (LAST&&LAST.ago!=null ? "Off screen · seen "+(LAST.ago<1?"just now":Math.round(LAST.ago)+"s ago") : (cur?"Off screen":"No live play")) }
+$("#lk_x").onclick=()=>follow(null,null);
+let SELSET=null;
+function isSel(b){ return (HLG!=null&&b[0]===HLG) || (selR!=null ? whoOf(b)===selR : (selG!=null&&(SELSET?SELSET.has(b[0]):b[0]===selG))) }
+let HLG=null;
+function tagText(b){
+  if(b[2]===2) return "REF"; const r=whoOf(b);
+  if(r==null){const t=boxTeam(b); return (t?abbr(t):"?")+(b[2]===1?" G":"")}
+  const p=ROSTER[r]; if(tagMode==="num") return (p.number!=null?"#"+p.number:"")+(b[2]===1?" G":"");
+  return (p.number!=null?p.number+" ":"")+lastName(p.name).toUpperCase();
+}
+function drawOverlay(){
+  const c=octx; c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,ov.width,ov.height); if(!cur) return;
+  const sx=vrect.w/D.size[0], sy=vrect.h/D.size[1];
+  c.font=`600 ${Math.max(11,Math.round(vrect.w/70))}px "Barlow Condensed","Arial Narrow",sans-serif`; c.textBaseline="middle";
+  const selBoxes=cur.boxes.filter(b=>isSel(b)&&!ignored(b));
+  if(selBoxes.length&&!DRAW){                       // spotlight: dim the picture, keep a bright pool around the followed player
+    c.save(); c.fillStyle="rgba(0,0,0,.38)"; c.fillRect(vrect.x,vrect.y,vrect.w,vrect.h);
+    c.globalCompositeOperation="destination-out";
+    for(const b of selBoxes){ const x=vrect.x+(b[3]+b[5])/2*sx, y=vrect.y+(b[4]*0.45+b[6]*0.55)*sy, h=(b[6]-b[4])*sy, R=Math.max(55,h*1.5);
+      const g=c.createRadialGradient(x,y,0,x,y,R); g.addColorStop(0,"rgba(0,0,0,1)"); g.addColorStop(.55,"rgba(0,0,0,1)"); g.addColorStop(1,"rgba(0,0,0,0)");
+      c.fillStyle=g; c.beginPath(); c.arc(x,y,R,0,Math.PI*2); c.fill() }
+    c.restore();
+  }
+  for(const b of [...cur.boxes].sort((a,b)=>isSel(a)-isSel(b))){
+    const kind=b[2]; if((kind===2&&!showRefs)||ignored(b)) continue;
+    const sel=isSel(b), named=whoOf(b)!=null, col=kind===2?"#c8d0d8":teamCol(boxTeam(b));
+    const x=vrect.x+b[3]*sx, y=vrect.y+b[4]*sy, w=(b[5]-b[3])*sx, h=(b[6]-b[4])*sy;
+    c.globalAlpha=(selBoxes.length&&!sel)?0.45:1;
+    if(sel){ spotlight(c,b,x,y,w,h,col); c.globalAlpha=1; continue }
+    if(showBoxes){
+      c.lineWidth=sel?3:(named?2:1.25); c.strokeStyle=col; c.setLineDash(named||kind===2?[]:[4,3]);
+      if(sel){c.shadowColor=col;c.shadowBlur=12} c.strokeRect(x,y,w,h); c.shadowBlur=0; c.setLineDash([]);
+      if(sel){ c.beginPath(); c.ellipse(x+w/2,y+h,Math.max(10,w*0.7),Math.max(4,w*0.22),0,0,Math.PI*2); c.strokeStyle="#8fd0ff"; c.lineWidth=2; c.stroke() }
+    }
+    const showTag = tagMode==="all"||tagMode==="num" ? (named||sel||kind===1) : (tagMode==="sel"?sel:false);
+    if(showTag){
+      const txt=tagText(b), sp=(showSpeed&&b[9]!=null&&kind!==2)?` ${b[9].toFixed(0)}`:"";
+      const tw=c.measureText(txt).width, sw=sp?c.measureText(sp+" mph").width+4:0, ph=Math.max(16,Math.round(vrect.w/52));
+      const bw=tw+sw+12; let tx=x+w/2-bw/2, ty=y-ph-4;
+      tx=Math.max(vrect.x+2,Math.min(vrect.x+vrect.w-bw-2,tx)); if(ty<vrect.y+2) ty=Math.min(y+h+4,vrect.y+vrect.h-ph-2);
+      c.fillStyle=sel?"#8fd0ff":"rgba(8,12,17,.82)"; roundRect(c,tx,ty,bw,ph,4); c.fill();
+      c.fillStyle=sel?"#06121d":col; c.fillRect(tx,ty,3,ph);
+      c.fillStyle=sel?"#06121d":"#eef3f8"; c.fillText(txt,tx+7,ty+ph/2+1);
+      if(sp){c.fillStyle=sel?"#06121d":"#8fd0ff"; c.fillText(sp+" mph",tx+9+tw,ty+ph/2+1)}
+    }
+  }
+  c.globalAlpha=1;
+  drawShapeVideo(c,sx,sy);
+  drawDrawings(c);
+}
+function spotlight(c,b,x,y,w,h,col){
+  const fx=x+w/2, fy=y+h, rx=Math.max(18,w*0.95), ry=Math.max(7,rx*0.32), ph=(performance.now()%1400)/1400;
+  // pool of light on the ice under his skates + a pulsing ring
+  c.save(); c.shadowColor="#8fd0ff"; c.shadowBlur=18;
+  c.beginPath(); c.ellipse(fx,fy,rx,ry,0,0,Math.PI*2); c.fillStyle="rgba(143,208,255,.32)"; c.fill();
+  c.lineWidth=2.5; c.strokeStyle="#ffffff"; c.stroke(); c.restore();
+  c.beginPath(); c.ellipse(fx,fy,rx*(1+ph*0.6),ry*(1+ph*0.6),0,0,Math.PI*2); c.strokeStyle=`rgba(143,208,255,${0.8*(1-ph)})`; c.lineWidth=2; c.stroke();
+  // name plate above his head, like a broadcast graphic
+  const r=whoOf(b), p=r!=null?ROSTER[r]:null;
+  const num=p&&p.number!=null?String(p.number):"", nm=p?p.name.toUpperCase():(b[2]===1?"GOALIE":"UNIDENTIFIED");
+  const fs=Math.max(13,Math.round(vrect.w/48)); c.font=`700 ${fs}px "Barlow Condensed","Arial Narrow",sans-serif`; c.textBaseline="middle";
+  const nw=c.measureText(nm).width, uw=num?c.measureText(num).width+10:0, phh=fs+10, bw=nw+uw+22;
+  let tx=Math.max(vrect.x+4,Math.min(vrect.x+vrect.w-bw-4,fx-bw/2)), ty=y-phh-14; if(ty<vrect.y+4) ty=vrect.y+4;
+  c.strokeStyle="rgba(255,255,255,.85)"; c.lineWidth=1.5; c.beginPath(); c.moveTo(fx,ty+phh); c.lineTo(fx,y-2); c.stroke();
+  c.save(); c.shadowColor="rgba(0,0,0,.6)"; c.shadowBlur=8; c.fillStyle="#ffffff"; roundRect(c,tx,ty,bw,phh,phh/2); c.fill(); c.restore();
+  c.fillStyle=col; roundRect(c,tx+4,ty+4,uw?uw+8:8,phh-8,(phh-8)/2); c.fill();
+  c.fillStyle="#fff"; if(num) c.fillText(num,tx+12,ty+phh/2+1);
+  c.fillStyle="#0b1620"; c.fillText(nm,tx+(uw?uw+18:16),ty+phh/2+1);
+  if(showSpeed&&b[9]!=null){ c.font=`600 ${Math.round(fs*0.8)}px "IBM Plex Mono",monospace`; const t=b[9].toFixed(0)+" mph"; const sw=c.measureText(t).width+12;
+    c.fillStyle="rgba(8,12,17,.85)"; roundRect(c,fx-sw/2,fy+ry+4,sw,fs+2,4); c.fill(); c.fillStyle="#8fd0ff"; c.fillText(t,fx-sw/2+6,fy+ry+4+(fs+2)/2+1) }
+}
+function roundRect(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));if(!(w>0&&h>0))return;c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function rinkXY(x,y){const W=rk.width/dpr,H=rk.height/dpr, R=D.rink, m=6, s=Math.min((W-2*m)/R.L,(H-2*m)/R.W), ox=(W-R.L*s)/2, oy=(H-R.W*s)/2; return [ox+(x+R.L/2)*s, oy+(R.W/2-y)*s, s]}
+function drawRink(){
+  const c=rctx; c.setTransform(dpr,0,0,dpr,0,0); const W=rk.width/dpr,H=rk.height/dpr; c.clearRect(0,0,W,H);
+  if(W<30||H<20) return; const R=D.rink; const [x0,y0,s]=rinkXY(-R.L/2,R.W/2);
+  c.fillStyle="#e9f1f7"; roundRect(c,x0,y0,R.L*s,R.W*s,R.cr*s); c.fill();
+  c.lineWidth=1.2; c.strokeStyle="#6c7a88"; roundRect(c,x0,y0,R.L*s,R.W*s,R.cr*s); c.stroke();
+  const vline=(x,col,w)=>{const [a,b]=rinkXY(x,R.W/2),[,d]=rinkXY(x,-R.W/2);c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(a,b);c.lineTo(a,d);c.stroke()};
+  c.save(); roundRect(c,x0,y0,R.L*s,R.W*s,R.cr*s); c.clip();
+  vline(0,"#d6453d",2.5); vline(-R.bx,"#2d63c8",3); vline(R.bx,"#2d63c8",3); vline(-R.gx,"#d6453d",1); vline(R.gx,"#d6453d",1);
+  c.strokeStyle="rgba(214,69,61,.75)"; c.lineWidth=1;
+  for(const [x,y] of [[0,0],[-R.ezx,R.dot],[-R.ezx,-R.dot],[R.ezx,R.dot],[R.ezx,-R.dot]]){const [a,b]=rinkXY(x,y);c.beginPath();c.arc(a,b,15*s,0,Math.PI*2);c.stroke()}
+  c.fillStyle="#d6453d"; for(const [x,y] of [[-R.ezx,R.dot],[-R.ezx,-R.dot],[R.ezx,R.dot],[R.ezx,-R.dot],[-20,22],[-20,-22],[20,22],[20,-22]]){const [a,b]=rinkXY(x,y);c.beginPath();c.arc(a,b,Math.max(1.5,1*s),0,Math.PI*2);c.fill()}
+  c.fillStyle="rgba(120,180,240,.55)"; for(const sx of [-1,1]){const [a,b]=rinkXY(sx*R.gx,0);c.beginPath();c.moveTo(a,b);c.arc(a,b,6*s,sx>0?Math.PI/2:-Math.PI/2,sx>0?Math.PI*1.5:Math.PI/2);c.closePath();c.fill()}
+  c.restore();
+  if(!cur){$("#rinkinfo").textContent="no live play";return}
+  if(selR!=null||selG!=null){
+    const i1=ub(FT,T), pts=[]; for(let i=Math.max(0,i1-60);i<i1;i++){for(const b of F[i][1]) if(isSel(b)&&b[7]!=null) pts.push([F[i][0],b[7],b[8]])}
+    c.strokeStyle="rgba(95,170,230,.85)";c.lineWidth=2.5;c.lineJoin="round";c.lineCap="round";c.beginPath();
+    pts.forEach((p,k)=>{const q=rinkXY(p[1],p[2]); const o=pts[k-1]; if(o&&p[0]-o[0]<0.5&&Math.hypot(p[1]-o[1],p[2]-o[2])<12) c.lineTo(q[0],q[1]); else c.moveTo(q[0],q[1])}); c.stroke();
+  }
+  let n=0; const r=Math.max(5,3.2*s);
+  c.font=`700 ${Math.max(9,Math.round(r*1.15))}px "Barlow Condensed",sans-serif`; c.textAlign="center"; c.textBaseline="middle";
+  for(const b of [...cur.boxes].sort((a,b)=>isSel(a)-isSel(b))){ if(b[7]==null||ignored(b)) continue; const kind=b[2]; if(kind===2&&!showRefs) continue;
+    const who=whoOf(b); const [a,y]=rinkXY(b[7],b[8]); const sel=isSel(b); n++;
+    c.beginPath(); c.arc(a,y,sel?r*1.35:r,0,Math.PI*2); c.fillStyle=kind===2?"#b9c2cc":teamCol(boxTeam(b)); c.fill();
+    c.lineWidth=sel?2.5:1; c.strokeStyle=sel?"#0a0e13":"rgba(10,14,19,.6)"; c.stroke();
+    if(who!=null&&ROSTER[who].number!=null){c.fillStyle="#fff"; c.fillText(String(ROSTER[who].number),a,y+0.5)}
+  }
+  if(LAST&&LAST.ago!=null&&!LAST.on&&LAST.rx!=null&&LAST.ago<15){ const [a,y]=rinkXY(LAST.rx,LAST.ry); const ph=(performance.now()%1600)/1600;
+    c.setLineDash([3,3]); c.strokeStyle="#8fd0ff"; c.lineWidth=2; c.beginPath(); c.arc(a,y,r*1.5,0,Math.PI*2); c.stroke(); c.setLineDash([]);
+    c.strokeStyle=`rgba(143,208,255,${0.7*(1-ph)})`; c.beginPath(); c.arc(a,y,r*(1.5+ph*1.4),0,Math.PI*2); c.stroke();
+    c.font=`600 10px "IBM Plex Mono",monospace`; c.fillStyle="#0a0e13"; c.fillText("last seen",a,y-r*1.5-7) ; c.font=`700 ${Math.max(9,Math.round(r*1.15))}px "Barlow Condensed",sans-serif` }
+  c.textAlign="start"; drawShapeRink(c); c.textAlign="center";
+  const pk=puckAt(T); if(pk){const [a,y]=rinkXY(pk[1],pk[2]); c.beginPath(); c.arc(a,y,Math.max(2.5,1.6*s),0,Math.PI*2); c.fillStyle="#0a0e13"; c.fill(); c.strokeStyle="#fff"; c.lineWidth=1; c.stroke()}
+  c.textAlign="start"; $("#rinkinfo").textContent=n?n+" mapped":"";
+}
+
+/* timeline: tracked play, followed player, and every event as a tick */
+let tlBase=null;
+function drawTimeline(){
+  if(!D) return; const c=tctx; c.setTransform(dpr,0,0,dpr,0,0); const W=tl.width/dpr,H=tl.height/dpr; c.clearRect(0,0,W,H);
+  const X=t=>8+(W-16)*t/D.dur;
+  c.fillStyle="#2a3a4c"; for(const [a,b] of D.cover) c.fillRect(X(a),24,Math.max(1,X(b)-X(a)),8);
+  if(selR!=null){c.fillStyle="#8fd0ff"; for(const [a,b] of D.pres[selR]) c.fillRect(X(a),34,Math.max(2,X(b)-X(a)),5)}
+  for(const e of visibleEvents()){ if(e.type==="shift") continue; const x=X(e.t); c.fillStyle=TYPES[e.type]?.col||"#ccc";
+    if(e.type==="goal"){c.fillRect(x-1.5,8,3,34); c.beginPath(); c.moveTo(x-5,4);c.lineTo(x+5,4);c.lineTo(x,10);c.closePath();c.fill()} else c.fillRect(x-1,10,2,12) }
+  c.fillStyle="rgba(255,210,63,.75)"; for(const cl of Object.values(CLIPS)) c.fillRect(X(cl.t0),2,Math.max(3,X(cl.t1)-X(cl.t0)),4);   // saved clips
+  c.fillStyle="#8796a8"; c.font=`500 11px "IBM Plex Mono",monospace`; c.textBaseline="alphabetic";
+  const step=D.dur>1200?300:D.dur>300?60:15;
+  for(let t=0;t<=D.dur+0.01;t+=step){const x=X(t); c.fillRect(x,44,1,4); const lab=fmtHMS(D.t0+t); const w=c.measureText(lab).width; c.fillText(lab,Math.min(W-w-2,Math.max(2,x-w/2)),H-2)}
+  tlBase=c.getImageData(0,0,tl.width,tl.height);
+}
+function drawTimelineHead(){ if(!tlBase) return; const c=tctx; c.setTransform(1,0,0,1,0,0); c.putImageData(tlBase,0,0); c.setTransform(dpr,0,0,dpr,0,0);
+  const W=tl.width/dpr; const x=8+(W-16)*T/D.dur; c.fillStyle="#e7edf3"; c.fillRect(x-1,2,2,44); c.beginPath(); c.arc(x,4,4,0,Math.PI*2); c.fill() }
+function tlSeek(e){const r=tl.getBoundingClientRect(); seek((e.clientX-r.left-8)/(r.width-16)*D.dur)}
+let drag=false; tl.addEventListener("pointerdown",e=>{drag=true;tl.setPointerCapture(e.pointerId);tlSeek(e)});
+tl.addEventListener("pointermove",e=>{if(drag)tlSeek(e)}); tl.addEventListener("pointerup",()=>drag=false);
+
+/* on-ice lists */
+let lastListKey="";
+function updateLists(){
+  const el=$("#onice"); if(!cur){ if(lastListKey!=="none"){el.innerHTML='<div class="empty">No live play on screen right now (replay, break or close-up).</div>'; $("#onicecount").textContent=""; lastListKey="none"} return }
+  const by={}; for(const t of D.teamNames) by[t]={named:new Map(),unid:0};
+  for(const b of cur.boxes){ if(b[2]===2||ignored(b)) continue; const r=whoOf(b), t=boxTeam(b); if(!t||!by[t]) continue;
+    if(r!=null) by[t].named.set(r,b[9]); else by[t].unid++ }
+  const key=JSON.stringify(D.teamNames.map(t=>[[...by[t].named.keys()].sort(),by[t].unid]))+selR;
+  if(key!==lastListKey){
+    el.innerHTML=D.teamNames.map(t=>{const rows=[...by[t].named.keys()].sort((a,b)=>(ROSTER[a].number??99)-(ROSTER[b].number??99));
+      return `<div><div class="team-h"><span class="chip" style="background:${D.teamColor[t]};height:14px"></span>${esc(abbr(t)||t)}</div>`+
+      rows.map(i=>`<div class="prow${selR===i?" sel":""}" data-r="${i}" tabindex="0" title="${esc(ROSTER[i].name)} · click to follow"><span class="no" style="background:${D.teamColor[t]}">${ROSTER[i].number??"–"}</span><span class="nm"><b>${esc(lastName(ROSTER[i].name))}</b>${ROSTER[i].pos==="G"?" · G":""}</span><span class="sp" data-sp="${i}"></span></div>`).join("")+
+      (by[t].unid?`<div class="unid"><span class="q">?</span>${by[t].unid} not identified yet</div>`:"")+(rows.length||by[t].unid?"":`<div class="unid">none on screen</div>`)+`</div>`}).join("");
+    lastListKey=key;
+  }
+  for(const t of D.teamNames) for(const [i,v] of by[t].named){const s=el.querySelector(`[data-sp="${i}"]`); if(s) s.innerHTML=v==null?"":`<b>${v.toFixed(0)}</b> mph`}
+  $("#onicecount").textContent=D.teamNames.reduce((a,t)=>a+by[t].named.size+by[t].unid,0)+" on screen";
+}
+$("#onice").addEventListener("pointerdown",e=>{const r=e.target.closest(".prow"); if(r) follow(+r.dataset.r,null)});
+$("#onice").addEventListener("keydown",e=>{const r=e.target.closest(".prow"); if(r&&e.key==="Enter") follow(+r.dataset.r,null)});
+
+/* ---------- following + name correction ---------- */
+function follow(r,g){ selR=r; selG=r==null?g:null; SELSET=selG!=null?new Set(chainOf(selG)):null; lastListKey=""; lastCardKey=""; lockKey=""; $("#unfollow").hidden=(r==null&&g==null);
+  if(r!=null) $("#fplayer").value=String(r); else if(g==null) $("#fplayer").value=""; drawTimeline(); renderEvents(); draw() }
+$("#unfollow").onclick=()=>follow(null,null);
+let lastCardKey="";
+function valAt(arrT,arr,t){const i=ub(arrT,t)-1; return i<0?0:arr[i]}
+function rosterOptions(sel,team){ return D.teamNames.filter(t=>!team||t===team).map(t=>`<optgroup label="${esc(t)}">`+ROSTER.map((r,i)=>[r,i]).filter(([r])=>r.team===t).sort((a,b)=>(a[0].number??99)-(b[0].number??99))
+  .map(([r,i])=>`<option value="${i}"${i===sel?" selected":""}>${r.number??"#?"} ${esc(r.name)}${r.pos==="G"?" (G)":""}${r.heard?" · heard on commentary":""}</option>`).join("")+`</optgroup>`).join("") }
+function fixUI(box){
+  if(!box) return `<div class="fix hint">Wrong name? Pause when this player is on screen to fix it.</div>`;
+  const ch=chainOf(box[0]), ai=sameAIpieces(box[0]), cur=whoOf(box);
+  const spanS=ch.reduce((a,g)=>a+(PIECE[g]?PIECE[g].t1-PIECE[g].t0:0),0);
+  const aiLab=ai.length>1&&cur!=null&&PIECE[box[0]].person>=0&&P2R[PIECE[box[0]].person]===cur?`<option value="ai">Everywhere the AI read #${ROSTER[cur].number??"?"} ${esc(lastName(ROSTER[cur].name))} (${ai.length} pieces, whole game)</option>`:"";
+  return `<div class="fix"><span class="hint">Wrong name? This player is:</span><select class="btn" id="fixsel"><option value="">Choose a player…</option>${rosterOptions(cur)}<option value="-1">Not a player (referee, fan, coach)</option></select>
+    <span class="hint">Apply to</span><select class="btn" id="fixscope"><option value="chain">${ch.length>1?`This stretch (${ch.length} joined pieces, ${fmtMS(spanS)})`:"This piece of video"}</option>${aiLab}<option value="one">Only this exact piece</option></select></div>`;
+}
+function updateCard(){
+  const body=$("#pbody");
+  if(selR==null&&selG==null){ if(lastCardKey!=="none"){body.className="empty";body.innerHTML="Click any player on the video, on the rink, or in the on-ice list to follow them. Their box is highlighted, their trail shows on the rink, and their events fill the list.";lastCardKey="none"} return }
+  const nowBox=cur?cur.boxes.find(isSel):null; const v=nowBox&&nowBox[9]!=null?nowBox[9]:null;
+  const key=(selR!=null?"r"+selR:"g"+selG)+"|"+(nowBox?nowBox[0]:"-");
+  if(selR==null){
+    if(lastCardKey!==key){body.className="";body.innerHTML=`<div class="who"><div><div class="nm" style="font:700 22px var(--f-display)">Unidentified skater</div><div class="sub">No jersey number was readable on this piece of video.</div></div></div><div class="stats"><div class="stat live"><b id="c_v">–</b><span>speed now · mph</span></div></div>${nowBox&&AIGUESS[nowBox[0]]!=null?`<div class="fix"><span class="hint">AI's best guess (not sure): <b>#${ROSTER[AIGUESS[nowBox[0]]].number??"?"} ${esc(ROSTER[AIGUESS[nowBox[0]]].name)}</b></span><button class="btn" id="guessok">That's right</button></div>`:""}${fixUI(nowBox)}`;bindFix(nowBox);
+      const gb=$("#guessok"); if(gb) gb.onclick=()=>{ const r=AIGUESS[nowBox[0]]; saveNames(chainOf(nowBox[0]).filter(g=>g===nowBox[0]||pieceName(g)==null),r); follow(r,null); startShiftCheck(r,nowBox[0]) };
+      lastCardKey=key}
+    const e=$("#c_v"); if(e) e.textContent=v==null?"–":v.toFixed(1); return }
+  const p=ROSTER[selR], col=teamCol(p.team);
+  if(lastCardKey!==key){
+    body.className="";
+    const pi=PEOPLE.findIndex(q=>q.identified&&q.team===p.team&&q.number===p.number);
+    const rep=pi>=0?((D.report&&D.report.players||[]).find(x=>x.label===PEOPLE[pi].label)||{}):{};
+    const zones=(rep.oz!=null)?`<div class="zbar"><i style="width:${rep.dz}%;background:#5b6b7c"></i><i style="width:${rep.nz}%;background:#8796a8"></i><i style="width:${rep.oz}%;background:${col}"></i></div><div class="zlab"><span>DZ ${rep.dz}%</span><span>NZ ${rep.nz}%</span><span>OZ ${rep.oz}%</span></div>`:"";
+    body.innerHTML=`<div class="who" style="display:flex;gap:12px;align-items:center"><div class="jersey" style="background:${col}">${p.number??"–"}</div><div><div class="nm" style="font:700 22px/1 var(--f-display);text-transform:uppercase">${esc(p.name)}</div><div class="sub">${esc(p.team)}${p.pos?" · "+(p.pos==="G"?"Goalie":esc(p.pos)):""}</div></div><button class="btn" id="c_rep" style="margin-left:auto">Game report</button></div>
+      <div class="stats">
+        <div class="stat live"><b id="c_v">–</b><span>speed now</span></div>
+        <div class="stat"><b id="c_top">–</b><span>top so far</span></div>
+        <div class="stat"><b id="c_d">–</b><span>feet so far</span></div>
+        <div class="stat"><b id="c_s">–</b><span>seen so far</span></div>
+      </div>
+      <canvas id="spark" aria-label="Speed over the last 20 seconds"></canvas><div class="hint">Speed over the last 20 seconds (mph)</div>
+      ${rep.avg_mph!=null?`<div class="hint" style="margin-top:8px">Whole clip: avg ${rep.avg_mph} mph · top ${rep.top_mph??"–"} mph · ${Math.round(rep.distance_ft||0).toLocaleString()} ft</div>`:""}
+      ${zones?`<div class="hint" style="margin-top:6px">Time by zone</div>${zones}`:""}
+      ${nowBox&&howNamed(nowBox)==="match"?`<div class="hint" style="margin-top:8px">This stretch was matched to ${esc(lastName(p.name))} by where he was and how he looks, not by reading his number (right about 9 times in 10 when we tested). Fix it below if it's wrong.</div>`:""}${nowBox&&howNamed(nowBox)==="goalie"?`<div class="hint" style="margin-top:8px">Named as the ${esc(abbr(p.team)||p.team)} goalie in net this game.</div>`:""}
+      <div id="sq"></div><div id="pev"></div>
+      ${fixUI(nowBox)}
+      <div class="hint" style="margin-top:8px"><a id="c_yt" target="_blank" rel="noopener">Open this moment on YouTube</a></div>`;
+    const sp=$("#spark"); const r=sp.getBoundingClientRect(); sp.width=Math.round(r.width*dpr); sp.height=Math.round(r.height*dpr);
+    bindFix(nowBox); lastCardKey=key; renderPlayerEvents(); renderSQ(); $("#c_rep").onclick=()=>openReport(selR);
+  }
+  const a=D.acc[selR];
+  $("#c_v").textContent=v==null?"–":v.toFixed(1);
+  $("#c_top").textContent=valAt(a.t,a.top,T)?valAt(a.t,a.top,T).toFixed(1):"–";
+  $("#c_d").textContent=Math.round(valAt(a.t,a.dist,T)).toLocaleString();
+  $("#c_s").textContent=fmtMS(valAt(a.t,a.seen,T));
+  const yt=$("#c_yt"); if(yt&&D.video) yt.href=D.video+(D.video.includes("?")?"&":"?")+"t="+Math.floor(D.t0+T)+"s";
+  drawSpark(a);
+}
+function bindFix(box){ const s=$("#fixsel"); if(!s||!box) return; s.onchange=()=>{ if(s.value==="") return; const r=+s.value, sc=$("#fixscope").value;
+  const old=whoOf(box);
+  let gids=sc==="one"?[box[0]]:sc==="ai"?sameAIpieces(box[0]):chainOf(box[0]).filter(g=>{ const n=pieceName(g); return g===box[0]||n==null||n===old });   // never overwrite a piece already named someone else
+  saveNames(gids,r); if(r>=0){ follow(r,null); startShiftCheck(r,box[0]) } else follow(null,null) } }
+function drawSpark(){
+  const sp=$("#spark"); if(!sp) return; const c=sp.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); const W=sp.width/dpr,H=sp.height/dpr; c.clearRect(0,0,W,H);
+  const t0=T-20, i0=ub(FT,t0), i1=ub(FT,T); const pts=[];
+  for(let i=i0;i<i1;i++) for(const b of F[i][1]) if(whoOf(b)===selR&&b[9]!=null) pts.push([F[i][0],b[9]]);
+  const vmax=25; c.strokeStyle="#223041"; c.lineWidth=1; for(const v of [5,10,15,20]){const y=H-4-(H-8)*v/vmax; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke()}
+  c.fillStyle="#8796a8"; c.font=`500 10px "IBM Plex Mono",monospace`; c.fillText("20",2,H-4-(H-8)*20/vmax-3);
+  if(pts.length<2) return; const X=t=>(t-t0)/20*W, Y=v=>H-4-(H-8)*Math.min(v,vmax)/vmax;
+  c.beginPath(); let prev=null; for(const [t,v] of pts){ if(!prev||t-prev>0.5) c.moveTo(X(t),Y(v)); else c.lineTo(X(t),Y(v)); prev=t }
+  c.strokeStyle="#8fd0ff"; c.lineWidth=2; c.stroke();
+  const l=pts[pts.length-1]; c.beginPath(); c.arc(X(l[0]),Y(l[1]),3.5,0,Math.PI*2); c.fillStyle="#8fd0ff"; c.fill();
+}
+
+/* ---------- events: AI tags + your edits ---------- */
+function allEvents(){
+  const out=[];
+  for(const e of AIEV){ const ed=EDITS[e.id]; if(ed&&ed.deleted) continue; out.push(ed?{...e,...ed,ai:e}:{...e}) }
+  for(const id in EDITS){ const ed=EDITS[id]; if(ed.added&&!ed.deleted) out.push({...ed,id}) }
+  return out.sort((a,b)=>a.t-b.t);
+}
+function involves(e,r){ return e.r===r||(e.rs||[]).includes(r) }
+function visibleEvents(){
+  const tm=$("#fteam").value, pl=$("#fplayer").value;
+  return allEvents().filter(e=>ON[e.type]!==false&&(!tm||e.team===tm||(e.rs||[]).some(r=>ROSTER[r]&&ROSTER[r].team===tm))&&(pl===""||involves(e,+pl)));
+}
+function buildFilters(){
+  $("#fteam").innerHTML=`<option value="">Both teams</option>`+D.teamNames.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
+  $("#fplayer").innerHTML=`<option value="">All players</option>`+rosterOptions(null);
+  $("#fteam").onchange=()=>{renderEvents();drawTimeline();drawTimelineHead()};
+  $("#fplayer").onchange=()=>{const v=$("#fplayer").value; if(v===""){selR=null}else{selR=+v;selG=null} lastCardKey="";lastListKey=""; $("#unfollow").hidden=selR==null; renderEvents();drawTimeline();draw()};
+}
+let openEditor=null;
+function renderEvents(){
+  if(!D) return;
+  const all=allEvents(), counts={}; for(const e of all) counts[e.type]=(counts[e.type]||0)+1;
+  $("#typechips").innerHTML=Object.entries(TYPES).map(([k,t])=>`<button class="fchip ${ON[k]?"on":"off"}" data-k="${k}" aria-pressed="${ON[k]}"><i style="background:${t.col}"></i>${t.label}<b>${counts[k]||0}</b></button>`).join("");
+  $("#typechips").querySelectorAll(".fchip").forEach(b=>b.onclick=()=>{ON[b.dataset.k]=!ON[b.dataset.k];renderEvents();drawTimeline();drawTimelineHead()});
+  renderPlayerEvents();
+  const vis=visibleEvents(); $("#evcount").textContent=`· ${vis.length}`;
+  const el=$("#evlist");
+  if(!vis.length){el.innerHTML=`<div class="empty" style="padding:10px 0">No events match these filters.</div>`;return}
+  el.innerHTML=vis.map(e=>{
+    const ty=TYPES[e.type]||{label:e.type,col:"#ccc"}; const sec={goal:"assist ",hit:"on ",save:"shot by ",faceoff:""}[e.type]; const who=e.r!=null?rName(e.r)+(e.rs&&e.rs.length?" · "+(sec??"")+e.rs.map(rName).join(", "):""):(e.rs&&e.rs.length?e.rs.map(rName).join(" vs "):"");
+    const team=e.team?abbr(e.team):""; const st=e.added?`<span class="badge you">Added</span>`:(e.confirmed?`<span class="badge ok">Checked</span>`:(EDITS[e.id]?`<span class="badge you">Edited</span>`:((e.conf??1)<0.6?`<span class="badge chk">Check</span>`:`<span class="badge">AI</span>`)));
+    const sub=[team, e.type==="shift"&&e.dur?fmtMS(e.dur):"", e.note||""].filter(Boolean).join(" · ");
+    return `<div class="evrow" data-id="${esc(e.id)}" data-t="${e.t}" style="--tc:${ty.col}"><span class="tm">${fmtHMS(D.t0+e.t)}</span><span class="ty"><i style="background:${ty.col}"></i>${ty.label}</span>
+      <span class="who"><b>${esc(who||(team?team+" ":"")||"—")}</b><span>${esc(sub)}</span></span>
+      <span class="st">${st}<button class="ib" data-act="ok" title="Mark as checked">✓</button><button class="ib" data-act="edit" title="Edit">Edit</button><button class="ib" data-act="clip" title="Make a clip of this">Clip</button></span></div>`+
+      (openEditor===e.id?editorHTML(e):"") }).join("");
+  bindEditor();
+}
+function editorHTML(e){
+  return `<div class="editor" data-ed="${esc(e.id)}">
+    <select class="btn" id="ed_type">${Object.entries(TYPES).map(([k,t])=>`<option value="${k}"${k===e.type?" selected":""}>${t.label}</option>`).join("")}</select>
+    <select class="btn" id="ed_team"><option value="">No team</option>${D.teamNames.map(t=>`<option value="${esc(t)}"${t===e.team?" selected":""}>${esc(t)}</option>`).join("")}</select>
+    <select class="btn" id="ed_r"><option value="">No player</option>${rosterOptions(e.r??null)}</select>
+    <button class="btn" id="ed_now" title="Move this event to the current video moment">Time = now (${fmtHMS(D.t0+T)})</button>
+    <input type="text" id="ed_note" placeholder="Note (e.g. assist by #24)" value="${esc(e.note||"")}">
+    <button class="btn primary" id="ed_save">Save</button><button class="btn" id="ed_cancel">Cancel</button><button class="btn" id="ed_del">Delete</button></div>`;
+}
+let edT=null;
+function bindEditor(){
+  const el=$("#evlist");
+  el.onclick=ev=>{
+    const row=ev.target.closest(".evrow"); const act=ev.target.closest("[data-act]");
+    if(row&&act){ const e=allEvents().find(x=>x.id===row.dataset.id); if(!e) return;
+      if(act.dataset.act==="clip"){ const lead=e.type==="shift"?0:4; openClipForm({t0:Math.max(0,e.t-lead),t1:e.type==="shift"?e.t+(e.dur||10):e.t+4,drawings:[],
+          title:`${(TYPES[e.type]||{label:e.type}).label}${e.r!=null?": "+rName(e.r):""}`,players:[e.r,...(e.rs||[])].filter(x=>x!=null),tags:[],notes:""}); return }
+      if(act.dataset.act==="ok"){ saveEdit(e.id,{...(EDITS[e.id]||{}),...(e.added?e:{}),confirmed:!e.confirmed,at:Date.now()}) }
+      else { openEditor=openEditor===e.id?null:e.id; edT=null; renderEvents() }
+      return }
+    if(row&&!ev.target.closest(".editor")){ const e=allEvents().find(x=>x.id===row.dataset.id); const lead=e&&e.type==="shift"?0:4; seek(+row.dataset.t-lead,true) }
+  };
+  const ed=el.querySelector(".editor"); if(!ed) return; const id=ed.dataset.ed; const e=allEvents().find(x=>x.id===id);
+  $("#ed_team").onchange=()=>{ const t=$("#ed_team").value; $("#ed_r").innerHTML=`<option value="">No player</option>`+rosterOptions(null,t||null) };
+  $("#ed_now").onclick=()=>{ edT=+T.toFixed(1); $("#ed_now").textContent="Time = "+fmtHMS(D.t0+edT) };
+  $("#ed_cancel").onclick=()=>{openEditor=null;renderEvents()};
+  $("#ed_del").onclick=()=>{ openEditor=null; saveEdit(id,{...(EDITS[id]||{}),deleted:true,at:Date.now()}) };
+  $("#ed_save").onclick=()=>{
+    const r=$("#ed_r").value===""?null:+$("#ed_r").value; let team=$("#ed_team").value||null; if(r!=null&&!team) team=ROSTER[r].team;
+    const base=e.added?{...EDITS[id]}:{...(EDITS[id]||{})};
+    saveEdit(id,{...base,type:$("#ed_type").value,team,r,t:edT!=null?edT:e.t,note:$("#ed_note").value.slice(0,200),confirmed:true,at:Date.now()});
+    openEditor=null; edT=null;
+  };
+}
+function addTag(type){
+  const r=selR; const team=r!=null?ROSTER[r].team:($("#fteam").value||null);
+  const id="u"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  ON[type]=true; openEditor=id;
+  saveEdit(id,{added:true,type,t:+T.toFixed(1),team,r,rs:[],note:"",confirmed:true,src:"you",at:Date.now()});
+}
+function markNow(){
+  const rows=document.querySelectorAll("#evlist .evrow"); let best=null;
+  for(const r of rows){ const t=+r.dataset.t; r.classList.toggle("now",Math.abs(t-T)<2.5) }
+  if(TRANS.length) markTranscript();
+}
+
+/* ---------- the followed player's own tags (in the Following card) ---------- */
+let pevType=null;
+function renderPlayerEvents(){
+  const box=$("#pev"); if(!box||selR==null) return;
+  const mine=allEvents().filter(e=>involves(e,selR)); const counts={}; for(const e of mine) counts[e.type]=(counts[e.type]||0)+1;
+  if(pevType&&!counts[pevType]) pevType=null;
+  const list=mine.filter(e=>!pevType||e.type===pevType);
+  const chips=Object.entries(TYPES).filter(([k])=>counts[k]).map(([k,t])=>`<button class="fchip ${pevType===k?"on":(pevType?"off":"on")}" data-pk="${k}"><i style="background:${t.col}"></i>${t.label}<b>${counts[k]}</b></button>`).join("");
+  const role=e=>e.r===selR?"":({goal:"assist",hit:"was hit",save:"shot on goalie",faceoff:"took the draw"}[e.type]||"involved");
+  box.innerHTML=`<div class="pev-h"><span>${esc(lastName(ROSTER[selR].name)||"Player")}'s tags · ${mine.length}</span>${list.length?`<button class="btn" id="pev_play">Play ${pevType?(TYPES[pevType]||{label:pevType}).label.toLowerCase():"all"} (${list.length})</button>`:""}</div>`+
+    (mine.length?`<div class="chips pev-chips">${chips}</div><div class="pev-list">`+list.map(e=>{const ty=TYPES[e.type]||{label:e.type,col:"#ccc"};
+      const sub=[role(e), e.type==="shift"&&e.dur?fmtMS(e.dur):"", e.note||""].filter(Boolean).join(" · ");
+      return `<div class="pev-row" data-t="${e.t}" data-ty="${e.type}" tabindex="0"><span class="tm">${fmtHMS(D.t0+e.t)}</span><span class="ty"><i style="background:${ty.col}"></i>${ty.label}</span><span class="sub">${esc(sub)}</span></div>`}).join("")+`</div>`
+      :`<div class="hint">No tags for this player yet. Press G, S, V, F, E, H, B or P while following them to add one.</div>`);
+  box.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{pevType=pevType===b.dataset.pk?null:b.dataset.pk; renderPlayerEvents()});
+  const pb=$("#pev_play"); if(pb) pb.onclick=()=>playList(list);
+  box.querySelectorAll(".pev-row").forEach(r=>{const go=()=>seek(+r.dataset.t-(r.dataset.ty==="shift"?0:4),true); r.onclick=go; r.onkeydown=e=>{if(e.key==="Enter")go()}});
+}
+
+/* ---------- playlist: play the filtered events back to back ---------- */
+let queue=null, qi=0;
+function playList(v){ if(!v.length) return;
+  queue=v.map(e=>e.type==="shift"?[e.t,e.t+(e.dur||10)]:[e.t-4,e.t+4]); qi=0; $("#stopall").hidden=false; seek(queue[0][0],true) }
+$("#playall").onclick=()=>playList(visibleEvents());
+$("#stopall").onclick=()=>{ queue=null; ACTIVE=null; stopClipAudio(); $("#stopall").hidden=true; renderClips() };
+function stepQueue(){ if(!queue) return; if(T>=queue[qi][1]){ qi++; if(qi>=queue.length){queue=null;ACTIVE=null;stopClipAudio();$("#stopall").hidden=true;vid.pause();renderClips();return} ACTIVE=queue[qi][2]||null; shownD=new Set(); seek(queue[qi][0],true); startClipAudio(ACTIVE); renderClips() } }
+
+/* ---------- commentary ---------- */
+function buildTranscript(){
+  const names=ROSTER.map(r=>lastName(r.name)).filter(n=>n&&n.length>2);
+  const re=names.length?new RegExp("\\b("+names.map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).join("|")+")\\b","gi"):null;
+  $("#cmt").innerHTML=TRANS.map(([t,,x],i)=>`<div class="cl" data-t="${t}" data-i="${i}"><span class="tm">${fmtHMS(D.t0+t)}</span><span>${re?esc(x).replace(re,"<mark>$1</mark>"):esc(x)}</span></div>`).join("");
+  $("#cmt").onclick=e=>{const r=e.target.closest(".cl"); if(r) seek(+r.dataset.t,true)};
+  $("#cmtinfo").textContent=TRANS.length+" lines";
+}
+let lastCl=-1;
+function markTranscript(){ let k=-1; for(let i=0;i<TRANS.length;i++){ if(TRANS[i][0]<=T) k=i; else break }
+  if(k===lastCl) return; lastCl=k; const box=$("#cmt"); box.querySelectorAll(".cl.now").forEach(x=>x.classList.remove("now"));
+  const el=box.querySelector(`[data-i="${k}"]`); if(el){el.classList.add("now"); box.scrollTop=el.offsetTop-box.offsetTop-60} }
+
+/* clicks on the video and rink */
+function pickFollow(b){ if(isSel(b)){follow(null,null);return} const r=whoOf(b); if(r!=null) follow(r,null); else follow(null,b[0]) }
+ov.addEventListener("click",e=>{ if(!cur||DRAW) return; const r=ov.getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const sx=vrect.w/D.size[0], sy=vrect.h/D.size[1]; let best=null,bd=1e9;
+  for(const b of cur.boxes){ if((b[2]===2&&!showRefs)||ignored(b)) continue; const x=vrect.x+b[3]*sx,y=vrect.y+b[4]*sy,w=(b[5]-b[3])*sx,h=(b[6]-b[4])*sy;
+    const pad=8; if(mx>=x-pad&&mx<=x+w+pad&&my>=y-pad-20&&my<=y+h+pad){const d=Math.hypot(mx-(x+w/2),my-(y+h/2)); if(d<bd){bd=d;best=b}}}
+  if(!best) return; pickFollow(best) });          // clicking empty ice keeps the player you follow
+rk.addEventListener("click",e=>{ if(!cur) return; const r=rk.getBoundingClientRect(); const mx=e.clientX-r.left,my=e.clientY-r.top; let best=null,bd=18;
+  for(const b of cur.boxes){ if(b[7]==null) continue; const [x,y]=rinkXY(b[7],b[8]); const d=Math.hypot(mx-x,my-y); if(d<bd){bd=d;best=b}}
+  if(best) pickFollow(best) });
+
+/* ---------- clips + drawing on the video ---------- */
+let CLIPS={}, DRAFT=null, ACTIVE=null, DRAW=null, shownD=new Set(), resumeT=null;
+const TAG_SUGGEST=["breakout","forecheck","D-zone coverage","neutral zone","power play","penalty kill","turnover","scoring chance","good play","teaching point","faceoff","net front"];
+// Drawings are stored in video-frame coordinates (0..1), so they line up at any screen size.
+const toV=(mx,my)=>[(mx-vrect.x)/vrect.w,(my-vrect.y)/vrect.h], fromV=(p)=>[vrect.x+p[0]*vrect.w, vrect.y+p[1]*vrect.h];
+function strokePath(c,s){
+  const lw=Math.max(2,vrect.w/220)*(s.w||1); c.strokeStyle=s.col; c.fillStyle=s.col; c.lineWidth=lw; c.lineCap="round"; c.lineJoin="round";
+  c.save(); c.shadowColor="rgba(0,0,0,.7)"; c.shadowBlur=4;
+  if(s.tool==="circle"&&s.pts.length>1){ const [a,b]=[fromV(s.pts[0]),fromV(s.pts[s.pts.length-1])]; c.beginPath(); c.ellipse((a[0]+b[0])/2,(a[1]+b[1])/2,Math.abs(b[0]-a[0])/2+1,Math.abs(b[1]-a[1])/2+1,0,0,Math.PI*2); c.stroke() }
+  else if(s.pts.length>1){ c.beginPath(); const p0=fromV(s.pts[0]); c.moveTo(p0[0],p0[1]); for(const p of s.pts.slice(1)){const q=fromV(p); c.lineTo(q[0],q[1])} c.stroke();
+    if(s.tool==="arrow"||s.tool==="pen"&&s.arrow){ const q=fromV(s.pts[s.pts.length-1]); let k=s.pts.length-2, pb=fromV(s.pts[k]); while(k>0&&Math.hypot(q[0]-pb[0],q[1]-pb[1])<12){k--;pb=fromV(s.pts[k])}
+      const ang=Math.atan2(q[1]-pb[1],q[0]-pb[0]), L=lw*4.5; c.beginPath(); c.moveTo(q[0],q[1]); c.lineTo(q[0]-L*Math.cos(ang-0.45),q[1]-L*Math.sin(ang-0.45)); c.lineTo(q[0]-L*Math.cos(ang+0.45),q[1]-L*Math.sin(ang+0.45)); c.closePath(); c.fill() } }
+  c.restore();
+}
+function drawDrawings(c){
+  const list=[...(ACTIVE?ACTIVE.drawings||[]:[]),...(DRAFT?DRAFT.drawings||[]:[])];
+  for(const d of list) if(Math.abs(d.t-T)<0.35) for(const s of d.strokes) strokePath(c,s);
+  if(DRAW){ for(const s of DRAW.strokes) strokePath(c,s); if(DRAW.cur) strokePath(c,DRAW.cur) }
+  if(DEMO_D) for(const s of DEMO_D.strokes){ const k=s.tool==="circle"?(DEMO_D.prog>s.at?2:0):Math.max(0,Math.round(s.pts.length*Math.min(1,(DEMO_D.prog-s.at)/(1-s.at)))); if(k>1) strokePath(c,{...s,pts:s.pts.slice(0,k)}) }
+}
+// While a clip plays, stop at each drawing so the player can see it, then carry on after a few seconds.
+function clipDrawingPause(prevT,nowT){
+  if(!playing) return;
+  const list=[...(ACTIVE?ACTIVE.drawings||[]:[]),...(DRAFT?DRAFT.drawings||[]:[])];
+  for(const d of list){ const k=d.t.toFixed(2); if(prevT<d.t&&nowT>=d.t&&!shownD.has(k)&&nowT-d.t<1){ shownD.add(k); vid.pause(); playing=false; seek(d.t,false); vid.pause();
+      clearTimeout(resumeT); resumeT=setTimeout(()=>{ if(!playing&&Math.abs(T-d.t)<0.2) play(true) },3500); break } }
+}
+function setRec(){ const r=$("#recbar"), b=$("#clipbtn");
+  if(DRAFT&&DRAFT.recording){ r.hidden=false; $("#rectext").textContent=`Clip from ${fmtHMS(D.t0+DRAFT.t0)} · play to the end, then click End clip`+(DRAFT.drawings.length?` · ${DRAFT.drawings.length} drawing${DRAFT.drawings.length>1?"s":""}`:""); b.textContent="End clip"; b.classList.add("rec") }
+  else { r.hidden=true; b.textContent="Clip"; b.classList.remove("rec") } }
+function clipButton(){
+  if(DRAFT&&DRAFT.recording){ DRAFT.recording=false; DRAFT.t1=T-DRAFT.t0<1?DRAFT.t0+8:T; vid.pause(); setRec(); openClipForm(DRAFT); return }
+  if(!canWrite){ flash("View only: you can't save clips on this page."); return }
+  DRAFT={t0:T,t1:null,drawings:[],recording:true,players:selR!=null?[selR]:[],tags:[],notes:"",title:""}; shownD=new Set(); setRec(); if(!playing) play(true);
+}
+$("#clipbtn").onclick=()=>{$("#msg").hidden=true; clipButton()};
+// ---- drawing mode
+let DTOOL="pen", DCOL="#ffd23f";
+function startDraw(){ if(DRAW) return; $("#msg").hidden=true; vid.pause(); DRAW={t:+T.toFixed(2),strokes:[],cur:null}; $("#drawbar").hidden=false; $("#drawbtn").classList.add("on"); ov.style.cursor="crosshair";
+  $("#drawbar").querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x.dataset.col===DCOL)); draw() }
+function endDraw(keep){
+  const d=DRAW; DRAW=null; $("#drawbar").hidden=true; $("#drawbtn").classList.remove("on"); ov.style.cursor="";
+  if(keep&&d.strokes.length){ const dd={t:d.t,strokes:d.strokes};
+    if(DRAFT&&(DRAFT.recording||!$("#clipform").hidden)) { DRAFT.drawings.push(dd); shownD.add(dd.t.toFixed(2)); setRec(); if(!$("#clipform").hidden) renderClipForm() }
+    else { DRAFT={t0:Math.max(0,d.t-5),t1:d.t+3,drawings:[dd],players:selR!=null?[selR]:[],tags:[],notes:"",title:""}; openClipForm(DRAFT) } }
+  draw() }
+$("#drawbtn").onclick=()=>DRAW?endDraw(true):startDraw();
+$("#drawbar").addEventListener("click",e=>{ const t=e.target.closest("[data-tool]"), sw=e.target.closest(".sw");
+  if(t){ DTOOL=t.dataset.tool; $("#drawbar").querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on",x===t)) }
+  if(sw){ DCOL=sw.dataset.col; $("#drawbar").querySelectorAll(".sw").forEach(x=>x.classList.toggle("on",x===sw)) } });
+$("#d_undo").onclick=()=>{ if(DRAW){DRAW.strokes.pop(); draw()} };
+$("#d_clear").onclick=()=>{ if(DRAW){DRAW.strokes=[]; draw()} };
+$("#d_done").onclick=()=>endDraw(true); $("#d_cancel").onclick=()=>endDraw(false);
+ov.addEventListener("pointerdown",e=>{ if(!DRAW) return; e.preventDefault(); ov.setPointerCapture(e.pointerId); const r=ov.getBoundingClientRect();
+  DRAW.cur={tool:DTOOL,col:DCOL,pts:[toV(e.clientX-r.left,e.clientY-r.top)]} });
+ov.addEventListener("pointermove",e=>{ if(!DRAW||!DRAW.cur) return; const r=ov.getBoundingClientRect(); const p=toV(e.clientX-r.left,e.clientY-r.top), l=DRAW.cur.pts[DRAW.cur.pts.length-1];
+  if(DRAW.cur.tool==="pen"){ if(Math.hypot((p[0]-l[0])*vrect.w,(p[1]-l[1])*vrect.h)>3) DRAW.cur.pts.push(p) } else DRAW.cur.pts=[DRAW.cur.pts[0],p]; drawOverlay() });
+ov.addEventListener("pointerup",()=>{ if(!DRAW||!DRAW.cur) return; if(DRAW.cur.pts.length>1) DRAW.strokes.push({...DRAW.cur,pts:DRAW.cur.pts.map(p=>[+p[0].toFixed(4),+p[1].toFixed(4)])}); DRAW.cur=null; drawOverlay() });
+// ---- the save form
+function allTags(){ const s=new Set(TAG_SUGGEST); for(const c of Object.values(CLIPS)) for(const t of c.tags||[]) s.add(t); return [...s] }
+function openClipForm(d){ DRAFT={...d,recording:false}; if(!DRAFT.title){ const p=DRAFT.players[0]; DRAFT.title=p!=null?rName(p):`Clip ${fmtHMS(D.t0+DRAFT.t0)}` } renderClipForm(); $("#clipform").hidden=false; $("#clipform").scrollIntoView({block:"nearest",behavior:"smooth"}) }
+function renderClipForm(){
+  const f=$("#clipform"), d=DRAFT; if(!d){ f.hidden=true; return }
+  f.innerHTML=`<h2><span>${d.id?"Edit clip":"Save clip"}</span><span class="hint">${fmtHMS(D.t0+d.t0)}–${fmtHMS(D.t0+d.t1)} · ${fmtMS(d.t1-d.t0)}${d.drawings.length?` · ${d.drawings.length} drawing${d.drawings.length>1?"s":""}`:""}</span></h2>
+    <div class="row"><button class="btn" id="cf_in">Start = now</button><button class="btn" id="cf_out">End = now</button><button class="btn" id="cf_prev">Preview</button><button class="btn" id="cf_draw">Add a drawing here</button>${d.drawings.length?`<button class="btn" id="cf_deldraw">Remove drawings</button>`:""}</div>
+    <div class="row"><label class="btn" for="cf_vfile" style="cursor:pointer">${hasVoice(d)?"Replace voiceover":"Add voiceover"}</label><input type="file" id="cf_vfile" accept="audio/*" hidden>${hasVoice(d)?`<button class="btn" id="cf_vplay">Play with voice</button><button class="btn" id="cf_vdel">Remove voice</button><span class="hint">Voice: ${fmtMS(voiceDur(d))}</span>`:`<span class="hint">Record yourself talking through the play (phone voice memo is fine), then add the file. It plays along with the clip.</span>`}</div>
+    <div><label for="cf_title">Title</label><input type="text" id="cf_title" maxlength="120" value="${esc(d.title)}"></div>
+    <div><label>Tags</label><div class="row" id="cf_tags">${d.tags.map((t,i)=>`<span class="pill">${esc(t)}<button data-rt="${i}" aria-label="Remove">×</button></span>`).join("")}
+      <input type="text" id="cf_tag" list="cf_taglist" placeholder="Add a tag (Enter)" style="width:180px"><datalist id="cf_taglist">${allTags().map(t=>`<option value="${esc(t)}">`).join("")}</datalist></div></div>
+    <div><label>Players</label><div class="row">${d.players.map((r,i)=>`<span class="pill">${esc(rName(r))}<button data-rp="${i}" aria-label="Remove">×</button></span>`).join("")}
+      <select class="btn" id="cf_player"><option value="">+ Add player…</option>${rosterOptions(null)}</select></div></div>
+    <div><label for="cf_notes">Notes</label><textarea id="cf_notes" maxlength="1000" placeholder="What should the player see here?">${esc(d.notes)}</textarea></div>
+    <div class="row"><button class="btn primary" id="cf_save">Save clip</button><button class="btn" id="cf_cancel">${d.id?"Cancel":"Discard"}</button></div>`;
+  const keep=()=>{ d.title=$("#cf_title").value; d.notes=$("#cf_notes").value };
+  $("#cf_in").onclick=()=>{ keep(); d.t0=Math.min(T,d.t1-1); renderClipForm() };
+  $("#cf_out").onclick=()=>{ keep(); d.t1=Math.max(T,d.t0+1); renderClipForm() };
+  $("#cf_prev").onclick=()=>{ keep(); ACTIVE=null; shownD=new Set(); queue=[[d.t0,d.t1,null]]; qi=0; $("#stopall").hidden=false; seek(d.t0,true) };
+  $("#cf_draw").onclick=()=>{ keep(); startDraw() };
+  $("#cf_vfile").onchange=e=>{ keep(); const f=e.target.files[0]; if(f) loadVoiceFile(f,d) };
+  const vp=$("#cf_vplay"); if(vp) vp.onclick=()=>{ keep(); ACTIVE={...d,id:d.id||"draft"}; shownD=new Set(); queue=[[d.t0,d.t1,ACTIVE]]; qi=0; $("#stopall").hidden=false; seek(d.t0,true); startClipAudio(ACTIVE) };
+  const vd=$("#cf_vdel"); if(vd) vd.onclick=()=>{ keep(); d.voiceRemoved=!!d.voice; delete d.voice; delete d.voiceData; renderClipForm() };
+  const dd=$("#cf_deldraw"); if(dd) dd.onclick=()=>{ keep(); d.drawings=[]; renderClipForm(); draw() };
+  $("#cf_tag").onkeydown=e=>{ if(e.key==="Enter"||e.key===","){ e.preventDefault(); const v=e.target.value.trim().slice(0,40); keep(); if(v&&!d.tags.includes(v)) d.tags.push(v); renderClipForm(); $("#cf_tag").focus() } };
+  $("#cf_tag").onchange=e=>{ const v=e.target.value.trim().slice(0,40); if(v&&allTags().includes(v)){ keep(); if(!d.tags.includes(v)) d.tags.push(v); renderClipForm(); $("#cf_tag").focus() } };
+  f.querySelectorAll("[data-rt]").forEach(b=>b.onclick=()=>{ keep(); d.tags.splice(+b.dataset.rt,1); renderClipForm() });
+  f.querySelectorAll("[data-rp]").forEach(b=>b.onclick=()=>{ keep(); d.players.splice(+b.dataset.rp,1); renderClipForm() });
+  $("#cf_player").onchange=e=>{ const v=e.target.value; keep(); if(v!==""&&!d.players.includes(+v)) d.players.push(+v); renderClipForm() };
+  $("#cf_cancel").onclick=()=>{ DRAFT=null; f.hidden=true; draw() };
+  $("#cf_save").onclick=async()=>{ keep(); const pend=$("#cf_tag").value.trim(); if(pend&&!d.tags.includes(pend)) d.tags.push(pend.slice(0,40));
+    const id=d.id||("c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    const doc={title:(d.title||"Clip").slice(0,120),t0:+d.t0.toFixed(2),t1:+d.t1.toFixed(2),tags:d.tags,players:d.players,notes:d.notes.slice(0,1000),drawings:d.drawings,at:Date.now()};
+    if(d.voice&&!d.voiceData) doc.voice=d.voice;
+    const vdata=d.voiceData, oldVoice=d.voiceRemoved||vdata?(CLIPS[id]&&CLIPS[id].voice):null;
+    if(vdata) doc.voice={n:Math.ceil(vdata.split(",")[1].length/VCHUNK),type:vdata.slice(5,vdata.indexOf(";")),dur:d.voiceDurNew||0,v:Date.now()};
+    CLIPS[id]=doc; if(vdata) VCACHE[id+"@"+doc.voice.v]=vdata; DRAFT=null; f.hidden=true; renderClips(); drawTimeline(); drawTimelineHead(); showTab("cl");
+    if(db&&canWrite){ try{
+        if(vdata){ flash("Saving the voiceover…"); const b64=vdata.split(",")[1]; for(let i=0;i<doc.voice.n;i++) await db.doc(`voice/${id}_${doc.voice.v}_${i}`).set({d:b64.slice(i*VCHUNK,(i+1)*VCHUNK)}) }
+        await db.doc("clips/"+id).set(doc); flash("Clip saved for everyone who opens this page.");
+        if(oldVoice&&oldVoice.v) for(let i=0;i<oldVoice.n;i++) db.doc(`voice/${id}_${oldVoice.v}_${i}`).delete().catch(()=>{});
+      }catch(e){ flash("That clip couldn't be saved. It stays on this screen.") } }
+    else flash("Clip kept on this screen (saving isn't available here).") };
+}
+// ---- the clips list
+function showTab(k){ $("#tab_ev").classList.toggle("on",k==="ev"); $("#tab_cl").classList.toggle("on",k==="cl"); $("#evpane").hidden=k!=="ev"; $("#clpane").hidden=k!=="cl";
+  $("#playall").onclick=()=>k==="ev"?playList(visibleEvents()):playClips(visibleClips()); if(k==="cl") renderClips() }
+$("#tab_ev").onclick=()=>showTab("ev"); $("#tab_cl").onclick=()=>showTab("cl");
+function visibleClips(){ const tg=$("#cltag").value, pl=$("#clplayer").value;
+  return Object.entries(CLIPS).map(([id,c])=>({id,...c})).filter(c=>(!tg||(c.tags||[]).includes(tg))&&(pl===""||(c.players||[]).includes(+pl))).sort((a,b)=>a.t0-b.t0) }
+function playClips(list){ if(!list.length) return; queue=list.map(c=>[c.t0,c.t1,c]); qi=0; ACTIVE=list[0]; shownD=new Set(); $("#stopall").hidden=false; seek(list[0].t0,true); startClipAudio(ACTIVE); renderClips() }
+function renderClips(){
+  if(!D) return; const all=Object.values(CLIPS); $("#clcount").textContent=all.length?`· ${all.length}`:"";
+  const tg=$("#cltag"), pl=$("#clplayer"), tv=tg.value, pv=pl.value;
+  const tags=[...new Set(all.flatMap(c=>c.tags||[]))].sort(); tg.innerHTML=`<option value="">All tags</option>`+tags.map(t=>`<option${t===tv?" selected":""}>${esc(t)}</option>`).join("");
+  const ps=[...new Set(all.flatMap(c=>c.players||[]))].filter(r=>ROSTER[r]); pl.innerHTML=`<option value="">All players</option>`+ps.map(r=>`<option value="${r}"${String(r)===pv?" selected":""}>${esc(rName(r))}</option>`).join("");
+  const vis=visibleClips(), el=$("#cllist");
+  if(!all.length){ el.innerHTML=`<div class="empty" style="padding:10px 0">No clips yet. Press <b>Clip</b> (or C) to start one, play to the end and press it again. Or press <b>Draw</b> (D) to pause and draw on the video, or use <b>Clip</b> on any event.</div>`; return }
+  if(!vis.length){ el.innerHTML=`<div class="empty" style="padding:10px 0">No clips match these filters.</div>`; return }
+  el.innerHTML=vis.map(c=>`<div class="clrow${ACTIVE&&ACTIVE.id===c.id?" playing":""}" data-id="${esc(c.id)}"><div><div class="t">${esc(c.title)}</div>
+      <div class="m">${fmtHMS(D.t0+c.t0)} · ${fmtMS(c.t1-c.t0)}${(c.drawings||[]).length?` · ${c.drawings.length} drawing${c.drawings.length>1?"s":""}`:""}${c.voice?" · voiceover":""}</div>
+      ${c.notes?`<div class="n">${esc(c.notes.slice(0,160))}</div>`:""}
+      <div class="pills">${(c.tags||[]).map(t=>`<span class="pill">${esc(t)}</span>`).join("")}${(c.players||[]).filter(r=>ROSTER[r]).map(r=>`<span class="pill">${esc(rName(r))}</span>`).join("")}</div></div>
+    <div class="st"><button class="ib" data-cact="play">Play</button><button class="ib" data-cact="share">Share</button><button class="ib" data-cact="dl" title="Save this clip as a video file, with the tracking and drawings">Download</button><button class="ib" data-cact="edit">Edit</button><button class="ib" data-cact="del">Delete</button></div></div>`).join("");
+}
+$("#cltag").onchange=renderClips; $("#clplayer").onchange=renderClips;
+$("#cllist").onclick=async e=>{ const row=e.target.closest(".clrow"); if(!row) return; const id=row.dataset.id, c=CLIPS[id]; if(!c) return; const a=e.target.closest("[data-cact]");
+  if(!a||a.dataset.cact==="play"){ playClips([{id,...c}]); return }
+  if(a.dataset.cact==="share"){ shareClip(id); return }
+  if(a.dataset.cact==="edit"){ openClipForm({id,...c,tags:[...(c.tags||[])],players:[...(c.players||[])],drawings:[...(c.drawings||[])]}); return }
+  if(a.dataset.cact==="del"){ if(a.dataset.sure!=="1"){ a.dataset.sure="1"; a.textContent="Sure?"; setTimeout(()=>{a.dataset.sure="";a.textContent="Delete"},3000); return }
+    delete CLIPS[id]; renderClips(); drawTimeline(); drawTimelineHead(); if(db&&canWrite){ try{ await db.doc("clips/"+id).delete(); const v=c.voice; if(v&&v.v) for(let i=0;i<v.n;i++) db.doc(`voice/${id}_${v.v}_${i}`).delete().catch(()=>{}) }catch(err){ flash("That clip couldn't be deleted.") } } } };
+
+/* ---------- voiceover: a recording that plays along with a clip ---------- */
+// This page can't use the microphone directly, so a voice memo is added as a file. It is stored in pieces next to the clip.
+const VCHUNK=180000, VMAX=4*1024*1024; let CLIPAUDIO=null; const VCACHE={};
+const hasVoice=d=>!!(d.voiceData||d.voice), voiceDur=d=>d.voiceData?(d.voiceDurNew||0):((d.voice&&d.voice.dur)||0);
+function loadVoiceFile(f,d){
+  if(f.size>VMAX){ flash("That recording is too big (over 4 MB). Keep voiceovers under about 3 minutes."); return }
+  const fr=new FileReader(); fr.onload=()=>{ d.voiceData=fr.result; d.voiceDurNew=0; const a=new Audio(fr.result);
+    a.onloadedmetadata=()=>{ d.voiceDurNew=isFinite(a.duration)?+a.duration.toFixed(1):0; renderClipForm() };
+    flash("Voiceover added. Press Save clip to keep it."); renderClipForm() };
+  fr.onerror=()=>flash("That file couldn't be read. Try an MP3, M4A or WAV recording."); fr.readAsDataURL(f);
+}
+async function voiceURL(c){
+  if(c.voiceData) return c.voiceData; const v=c.voice; if(!v||!v.n) return null; const key=c.id+"@"+v.v;
+  if(VCACHE[key]) return VCACHE[key]; if(!db) return null;
+  try{ const parts=[]; for(let i=0;i<v.n;i++){ const sn=await db.doc(`voice/${c.id}_${v.v}_${i}`).get(); if(!sn.exists) return null; parts.push(sn.data().d) }
+    return VCACHE[key]="data:"+(v.type||"audio/mpeg")+";base64,"+parts.join("") }catch(e){ return null } }
+async function startClipAudio(c){ stopClipAudio(); if(!c||!hasVoice(c)) return; const want=c; const url=await voiceURL(c); if(!url||ACTIVE!==want) return;
+  CLIPAUDIO=new Audio(url); const lag=Math.max(0,T-c.t0); try{ CLIPAUDIO.currentTime=lag }catch(e){} if(playing) CLIPAUDIO.play().catch(()=>{}) }
+function stopClipAudio(){ if(CLIPAUDIO){ CLIPAUDIO.pause(); CLIPAUDIO=null } }
+vid.addEventListener("pause",()=>{ if(CLIPAUDIO&&!CLIPAUDIO.ended&&!(ACTIVE&&(ACTIVE.drawings||[]).some(d=>Math.abs(d.t-T)<0.4))) CLIPAUDIO.pause() });   // keep talking over a drawing stop
+vid.addEventListener("play",()=>{ if(CLIPAUDIO&&CLIPAUDIO.paused&&!CLIPAUDIO.ended) CLIPAUDIO.play().catch(()=>{}) });
+
+/* ---------- sharing one clip ---------- */
+// A shared link opens straight to that clip. The newest shared clip is also shown at the top for everyone who opens the page.
+let LATEST=null, WANTED=null, wantedDone=false;
+try{ const m=location.hash.match(/^#(c[a-z0-9]+)$/); if(m) WANTED=m[1] }catch(e){}   // the link carries the clip id as a plain #anchor
+async function shareClip(id){
+  const url=(SHARE_BASE||"")+"#"+id;
+  let copied=false; try{ await navigator.clipboard.writeText(url); copied=true }catch(e){}
+  if(db&&canWrite){ try{ await db.doc("shared/latest").set({clip:id,at:Date.now()}) }catch(e){} }
+  const c=CLIPS[id]; showShared(id,c,true,copied,url);
+}
+function openWantedClip(){
+  if(wantedDone) return;
+  const id=WANTED&&CLIPS[WANTED]?WANTED:null;
+  if(id){ wantedDone=true; showShared(id,CLIPS[id],false); return }
+  if(LATEST&&CLIPS[LATEST.clip]&&$("#sharedclip").hidden) showShared(LATEST.clip,CLIPS[LATEST.clip],false,false,null,true);
+}
+function showShared(id,c,justShared,copied,url,isLatest){
+  if(!c) return; const el=$("#sharedclip");
+  el.innerHTML=`<h2><span>${justShared?"Share this clip":(isLatest?"Latest shared clip":"Shared clip")}</span><button class="ib" id="sc_x" aria-label="Close">✕</button></h2>
+    <div class="t">${esc(c.title)}</div><div class="m">${fmtHMS(D.t0+c.t0)} · ${fmtMS(c.t1-c.t0)}${(c.drawings||[]).length?` · ${c.drawings.length} drawing${c.drawings.length>1?"s":""}`:""}${hasVoice(c)?" · voiceover":""}</div>
+    ${c.notes?`<p class="n">${esc(c.notes)}</p>`:""}
+    <div class="pills">${(c.tags||[]).map(t=>`<span class="pill">${esc(t)}</span>`).join("")}${(c.players||[]).filter(r=>ROSTER[r]).map(r=>`<span class="pill">${esc(rName(r))}</span>`).join("")}</div>
+    ${justShared?`<div class="row"><input type="text" id="sc_url" readonly value="${esc(url)}"><span class="hint">${copied?"Link copied.":"Copy this link."} Whoever opens it lands on this clip (they need to be signed in to Claude to see clips). It's also pinned at the top of the film room as the latest shared clip.</span></div>`:""}
+    <div class="row"><button class="btn primary" id="sc_play">${hasVoice(c)?"Play clip with voice":"Play clip"}</button><button class="btn" id="sc_all">See all clips</button></div>`;
+  el.hidden=false; $("#sc_x").onclick=()=>{ el.hidden=true };
+  $("#sc_play").onclick=()=>{ $("#msg").hidden=true; playClips([{id,...c}]) };
+  $("#sc_all").onclick=()=>{ showTab("cl"); $(".evcard").scrollIntoView({behavior:"smooth"}) };
+  const u=$("#sc_url"); if(u) u.onclick=()=>u.select();
+  if(!justShared&&!isLatest) el.scrollIntoView({block:"nearest"});
+}
+
+/* transport + keys */
+$("#play").onclick=()=>{$("#msg").hidden=true;play(false)};
+$("#back").onclick=()=>seek(T-5); $("#fwd").onclick=()=>seek(T+5);
+$("#stepb").onclick=()=>{vid.pause();seek(T-0.1)}; $("#stepf").onclick=()=>{vid.pause();seek(T+0.1)};
+$("#rate").onchange=e=>{vid.playbackRate=+e.target.value};
+$("#tags").onchange=e=>{tagMode=e.target.value;draw()};
+const tog=(id,fn)=>{const b=$(id); b.onclick=()=>{const on=!b.classList.contains("on"); b.classList.toggle("on",on); b.setAttribute("aria-pressed",on); fn(on); draw()}};
+tog("#tBoxes",v=>showBoxes=v); tog("#tSpeed",v=>showSpeed=v); tog("#tRefs",v=>showRefs=v);
+const HOT={}; for(const k in TYPES) if(TYPES[k].key) HOT[TYPES[k].key]=k;
+document.addEventListener("keydown",e=>{ if(e.target.closest("select,input,textarea")||e.ctrlKey||e.metaKey||e.altKey) return;
+  if(e.code==="Space"){e.preventDefault();$("#msg").hidden=true;play(false)} else if(e.key==="ArrowLeft"){seek(T-5)} else if(e.key==="ArrowRight"){seek(T+5)}
+  else if(e.key===","){vid.pause();seek(T-0.1)} else if(e.key==="."){vid.pause();seek(T+0.1)} else if(e.key==="Escape"){follow(null,null)}
+  else if(D&&e.key.toLowerCase()==="c"){ e.preventDefault(); clipButton() } else if(D&&e.key.toLowerCase()==="d"){ e.preventDefault(); startDraw() }
+  else if(D&&HOT[e.key.toLowerCase()]){ e.preventDefault(); addTag(HOT[e.key.toLowerCase()]) } });
+
+function tick(){
+  if(D&&SEGS.length&&!pendingSeek&&vid.readyState>=1){ const t=SEGS[segI].start+vid.currentTime; if(Math.abs(t-T)>1e-3){const pT=T; T=t; draw(); stepQueue(); clipDrawingPause(pT,T)} else if(selR!=null||selG!=null||HLG!=null) drawOverlay() }
+  requestAnimationFrame(tick);
+}
+
+
+/* ---------- post-game player report: everything the AI measured for one player, on one page ---------- */
+function repRow(r){ const p=ROSTER[r]; return (D.report&&D.report.players||[]).find(x=>x.team===p.team&&x.number===p.number&&x.identified)||null }
+function drawRepRink(cv,heat,col){
+  const dpr_=window.devicePixelRatio||1, bb=cv.getBoundingClientRect(); cv.width=Math.round(bb.width*dpr_); cv.height=Math.round(bb.height*dpr_);
+  const c=cv.getContext("2d"); c.setTransform(dpr_,0,0,dpr_,0,0); const W=bb.width,H=bb.height,R=D.rink,m=6,s=Math.max(0.01,Math.min((W-2*m)/R.L,(H-2*m)/R.W)),ox=(W-R.L*s)/2,oy=(H-R.W*s)/2;
+  const XY=(x,y)=>[ox+(x+R.L/2)*s, oy+(R.W/2-y)*s];
+  c.fillStyle="#e9f1f7"; roundRect(c,ox,oy,R.L*s,R.W*s,R.cr*s); c.fill(); c.save(); roundRect(c,ox,oy,R.L*s,R.W*s,R.cr*s); c.clip();
+  if(heat&&heat.length){ const nx=heat.length, ny=heat[0].length; let mx=1; for(const row of heat) for(const v of row) mx=Math.max(mx,v);
+    const cw=R.L*s/nx, ch=R.W*s/ny;
+    for(let i=0;i<nx;i++) for(let j=0;j<ny;j++){ const v=heat[i][j]; if(!v) continue; const a=Math.pow(v/mx,0.55);
+      const g=c.createRadialGradient(ox+(i+.5)*cw, oy+(ny-j-.5)*ch,0, ox+(i+.5)*cw, oy+(ny-j-.5)*ch, Math.max(cw,ch)*1.1);
+      g.addColorStop(0,`rgba(255,${Math.round(190-150*a)},40,${0.15+0.6*a})`); g.addColorStop(1,"rgba(255,120,40,0)"); c.fillStyle=g; c.fillRect(ox+(i-.6)*cw, oy+(ny-j-1.6)*ch, cw*2.2, ch*2.2) } }
+  const vl=(x,cl,w)=>{const [a,b]=XY(x,R.W/2),[,d]=XY(x,-R.W/2);c.strokeStyle=cl;c.lineWidth=w;c.beginPath();c.moveTo(a,b);c.lineTo(a,d);c.stroke()};
+  vl(0,"#d6453d",2.5); vl(-R.bx,"#2d63c8",3); vl(R.bx,"#2d63c8",3); vl(-R.gx,"#d6453d",1); vl(R.gx,"#d6453d",1);
+  c.strokeStyle="rgba(214,69,61,.75)"; c.lineWidth=1; for(const [x,y] of [[0,0],[-R.ezx,R.dot],[-R.ezx,-R.dot],[R.ezx,R.dot],[R.ezx,-R.dot]]){const [a,b]=XY(x,y);c.beginPath();c.arc(a,b,15*s,0,Math.PI*2);c.stroke()}
+  c.restore(); c.lineWidth=1.2; c.strokeStyle="#6c7a88"; roundRect(c,ox,oy,R.L*s,R.W*s,R.cr*s); c.stroke();
+  drawRepRink.last=XY;
+  return XY;
+}
+function openReport(r){
+  if(r==null||!ROSTER[r]) return; const p=ROSTER[r], col=teamCol(p.team), rp=repRow(r)||{};
+  const evs=allEvents().filter(e=>involves(e,r)), cnt=t=>evs.filter(e=>e.type===t&&(e.r===r||t==="faceoff")).length;
+  const opp=D.teamNames.find(t=>t!==p.team)||""; const shifts=(rp.shifts||[]).map(([a,d])=>[a-D.t0,d]);
+  const tiles=[["Time on ice",rp.toi_est_s!=null?fmtMS(rp.toi_est_s):"–","est."],["Shifts",rp.shifts_est??"–",rp.avg_shift_s!=null?`avg ${Math.round(rp.avg_shift_s)}s`:""],
+    ["Distance",rp.distance_ft!=null?Math.round(rp.distance_ft).toLocaleString():"–","feet"],["Top speed",rp.top_mph??"–","mph"],["Avg speed",rp.avg_mph??"–","mph"],
+    ["Goals",cnt("goal"),""],["Shots",cnt("shot"),""],["Zone entries",cnt("zone_entry"),""],["Faceoffs",cnt("faceoff"),""],["Hits",cnt("hit"),""]];
+  const bar=(parts)=>`<div class="rep-bar">${parts.map(([v,c])=>`<i style="width:${v||0}%;background:${c}"></i>`).join("")}</div><div class="rep-bl">${parts.map(([v,,l])=>`<span>${l} <b>${v??"–"}%</b></span>`).join("")}</div>`;
+  const span=D.dur||1, X=t=>Math.max(0,Math.min(100,t/span*100));
+  $("#rep_in").innerHTML=`
+    <div class="rep-head" style="--tc:${col}"><div class="jersey" style="background:${col}">${p.number??"–"}</div>
+      <div class="rep-who"><div class="rep-k">Game report · ${esc(abbr(p.team)||p.team)} vs ${esc(abbr(opp)||opp)} · ${({P1:"1st period",P2:"2nd period",P3:"3rd period",OT:"Overtime"})[(D.goals&&D.goals[0]&&D.goals[0].period)]||"Game"}</div><h3>${esc(p.name)}</h3><div class="sub">${esc(p.team)}${p.pos?" · "+(p.pos==="G"?"Goalie":p.pos==="D"?"Defense":"Forward"):""} · measured by AI from the broadcast</div></div>
+      <button class="btn" id="rep_x" aria-label="Close report">Close ✕</button></div>
+    <div class="rep-tiles">${tiles.map(([k,v,u])=>`<div class="rep-t"><span>${k}</span><b>${v}</b><em>${u}</em></div>`).join("")}</div>
+    <div class="rep-grid">
+      <div class="rep-card"><h4>Where he played</h4><canvas id="rep_rink"></canvas><div class="hint">Heat map of every second he was tracked · dots are his shots (bigger = from the slot)</div></div>
+      <div class="rep-card"><h4>How he skated</h4>${bar([[rp.stand,"#3a4a5c","Standing"],[rp.glide,"#5b7a99","Gliding"],[rp.skate,"#8fd0ff","Skating"],[rp.sprint,col,"Sprinting"]])}
+        <h4 style="margin-top:16px">Time by zone</h4>${bar([[rp.dz,"#5b6b7c","Defensive"],[rp.nz,"#8796a8","Neutral"],[rp.oz,col,"Offensive"]])}
+        <h4 style="margin-top:16px">Shifts</h4><div class="rep-shifts">${shifts.map(([a,d],k)=>`<button style="left:${X(a)}%;width:${Math.max(0.8,X(d))}%;background:${col}" data-t="${a}" title="Shift ${k+1} · ${fmtHMS(D.t0+a)} · ${Math.round(d)}s"></button>`).join("")}</div>
+        <div class="rep-bl"><span>${fmtHMS(D.t0)}</span><span>${shifts.length} shifts · click one to watch</span><span>${fmtHMS(D.t0+span)}</span></div></div>
+    </div>
+    <div id="rep_x2"></div>
+    <div class="rep-card"><h4>His tagged moments · ${evs.filter(e=>e.type!=="shift").length}</h4><div class="rep-ev">${evs.filter(e=>e.type!=="shift").map(e=>{const ty=TYPES[e.type]||{label:e.type,col:"#ccc"};
+      return `<button class="rep-e" data-t="${e.t}"><span class="tm">${fmtHMS(D.t0+e.t)}</span><span class="ty"><i style="background:${ty.col}"></i>${ty.label}</span><span class="nt">${esc((e.note||"").slice(0,90))}</span></button>`}).join("")||`<div class="hint">No tagged moments yet.</div>`}</div>
+      <div class="rep-acts"><button class="btn primary" id="rep_shifts">Play all his shifts</button><button class="btn" id="rep_follow">Follow him in the video</button><button class="btn" id="rep_reel">Highlight reel</button><button class="btn" id="rep_link">Copy his link</button><span class="hint" id="rep_linkinfo"></span></div></div>`;
+  $("#rep").hidden=false; document.body.style.overflow="hidden";
+  drawRepRink($("#rep_rink"),rp.heat,col);
+  repExtras(r,shifts,col);
+  { const XY=drawRepRink.last; const shots=evs.filter(e=>e.type==="shot"&&e.r===r&&e.x!=null); const cv=$("#rep_rink"), cx=cv.getContext("2d");
+    for(const e of shots){ const q=shotQ(e); if(!q) continue; const [a,b]=XY(e.x,e.y); cx.beginPath(); cx.arc(a,b,[3,4.5,6.5][q.lvl],0,Math.PI*2); cx.fillStyle=col; cx.fill(); cx.strokeStyle="#0a0e13"; cx.lineWidth=1.2; cx.stroke() } }
+  const close=()=>{ $("#rep").hidden=true; document.body.style.overflow="" };
+  $("#rep_x").onclick=close; $("#rep").onclick=e=>{ if(e.target.id==="rep") close() };
+  $("#rep_in").querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{ close(); follow(r,null); seek(Math.max(0,+b.dataset.t-(b.classList.contains("rep-e")?4:0)),true) });
+  $("#rep_shifts").onclick=()=>{ close(); follow(r,null); if(shifts.length){ queue=shifts.map(([a,d])=>[a,a+d]); qi=0; $("#stopall").hidden=false; seek(queue[0][0],true) } };
+  $("#rep_follow").onclick=()=>{ close(); follow(r,null) };
+  $("#rep_reel").onclick=()=>{ close(); playReel(playerReel(r),r) };
+  $("#rep_link").onclick=async()=>{ const u=playerLink(r), ok=await copyText(u); $("#rep_linkinfo").textContent=ok?"Link copied. It opens straight on this report.":u };
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("#rep").hidden){ $("#rep").hidden=true; document.body.style.overflow="" } },true);
+/* ---------- shift chart (every player) and the Stats page ---------- */
+let SC=null, VIEW="film", STSORT={k:"toi",d:-1};
+function rowR(p){ return ROSTER.findIndex(r=>r.team===p.team&&(p.number!=null?r.number===p.number:r.name===p.name)) }
+function scPlayers(){
+  return (D.report&&D.report.players||[]).filter(p=>p.identified&&(p.shifts||[]).length&&p.pos!=="G"&&p.number!=null)
+    .map(p=>({p,r:rowR(p),sh:p.shifts.map(([a,d])=>[a-D.t0,d])})).filter(x=>x.r>=0)
+    .sort((a,b)=>D.teamNames.indexOf(a.p.team)-D.teamNames.indexOf(b.p.team)||a.p.number-b.p.number);
+}
+function buildShiftChart(){
+  const sel=$("#sc_team"); if(sel.options.length<2) for(const t of D.teamNames) sel.add(new Option(t,t));
+  const tm=sel.value, rows=scPlayers().filter(x=>!tm||x.p.team===tm), span=D.dur||1, X=t=>Math.max(0,Math.min(100,t/span*100));
+  if(!rows.length){ $("#shiftchart").innerHTML=`<div class="empty" style="padding:10px">No shift data in this game file.</div>`; SC=null; return }
+  const evs=allEvents().filter(e=>["goal","shot","penalty","hit","faceoff"].includes(e.type));
+  $("#shiftchart").innerHTML=`<div class="sc-row sc-hd"><span class="sc-nm">Events</span><div class="sc-tr">${evs.map(e=>`<button class="sc-ev" data-t="${e.t}" style="left:${X(e.t)}%;background:${TYPES[e.type]?.col||"#ccc"};${e.type==="goal"?"width:4px;height:16px;top:2px":""}" title="${esc((TYPES[e.type]?.label||e.type)+" · "+fmtHMS(D.t0+e.t))}"></button>`).join("")}</div></div>`+
+    rows.map(x=>{const col=teamCol(x.p.team);
+      return `<div class="sc-row" data-r="${x.r}"><button class="sc-nm" data-rep="${x.r}" title="Open ${esc(x.p.name)}'s report"><i style="background:${col}">${x.p.number}</i>${esc(lastName(x.p.name))}</button><div class="sc-tr">${x.sh.map(([a,d],k)=>`<button data-t="${a}" data-r="${x.r}" style="left:${X(a)}%;width:${Math.max(0.5,X(d))}%;background:${col}" title="${esc(x.p.name)} · shift ${k+1} · ${fmtHMS(D.t0+a)} · ${Math.round(d)}s"></button>`).join("")}</div></div>`}).join("")+
+    `<div class="sc-head" id="sc_head"></div>`;
+  SC={rows,els:[...$("#shiftchart").querySelectorAll(".sc-row[data-r]")]};
+  $("#shiftchart").querySelectorAll(".sc-tr button[data-t]").forEach(b=>b.onclick=()=>{ if(b.dataset.r!=null) follow(+b.dataset.r,null); seek(Math.max(0,+b.dataset.t-(b.dataset.r?0:4)),true) });
+  $("#shiftchart").querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>openReport(+b.dataset.rep));
+  updShiftChart(true);
+}
+let scKey="";
+function updShiftChart(force){ if(!SC) return; const tr=$("#shiftchart .sc-tr"); if(!tr) return;
+  const head=$("#sc_head"), nm=150; const w=tr.getBoundingClientRect().width; head.style.left=(nm+w*T/(D.dur||1)-1)+"px";
+  const on=SC.rows.map(x=>x.sh.some(([a,d])=>T>=a&&T<=a+d)?1:0).join("")+"|"+selR; if(on===scKey&&!force) return; scKey=on;
+  SC.rows.forEach((x,i)=>{ SC.els[i].classList.toggle("on",on[i]==="1"); SC.els[i].classList.toggle("sel",x.r===selR) });
+}
+$("#sc_team").onchange=()=>buildShiftChart();
+
+function setView(v){ VIEW=v; $("#v_film").classList.toggle("on",v==="film"); $("#v_stats").classList.toggle("on",v==="stats");
+  $("#v_film").setAttribute("aria-selected",v==="film"); $("#v_stats").setAttribute("aria-selected",v==="stats");
+  $("#filmview").hidden=v!=="film"; $("#statsview").hidden=v!=="stats"; if(v==="stats"){ vid.pause(); buildStats() } else { resize(); draw() } }
+$("#v_film").onclick=()=>setView("film"); $("#v_stats").onclick=()=>setView("stats");
+
+let STX=null;
+function statsData(){ if(STX) return STX;
+  const n=ROSTER.length, half=(D.dur||1)/2, s=[[0,0],[0,0]].map(()=>null), sp=ROSTER.map(()=>[0,0,0,0]); // sum1,n1,sum2,n2
+  const BIN=30, nb=Math.ceil((D.dur||1)/BIN), tp=[0,1].map(()=>Array.from({length:nb},()=>[0,0]));
+  const spc=[[0,0],[0,0]]; let fi=0;
+  for(const [t,boxes] of F){ const bi=Math.min(nb-1,Math.floor(t/BIN));
+    if((fi++)%3===0) for(const k of [0,1]){ const S=teamShape(boxes,k); if(S&&S.n>=4){ spc[k][0]+=S.spacing; spc[k][1]++ } }
+    for(const b of boxes){ if(b[2]!==0||b[9]==null) continue; if(b[10]===0||b[10]===1){ tp[b[10]][bi][0]+=b[9]; tp[b[10]][bi][1]++ }
+      const r=whoOf(b); if(r==null) continue; const k=t<half?0:2; sp[r][k]+=b[9]; sp[r][k+1]++ } }
+  const pace=tp.map(arr=>{ const raw=arr.map(([a,c])=>c>20?a/c:null); return raw.map((v,i)=>{ const w=[raw[i-1],v,raw[i+1]].filter(x=>x!=null); return w.length?w.reduce((a,b)=>a+b,0)/w.length:null }) });
+  const rows=(D.report&&D.report.players||[]).filter(p=>p.identified&&p.number!=null&&p.pos!=="G").map(p=>{ const r=rowR(p); const q=r>=0?sp[r]:[0,0,0,0];
+    const a1=q[1]>30?q[0]/q[1]:null, a2=q[3]>30?q[2]/q[3]:null; const toi=p.toi_est_s||0;
+    return {p,r,team:p.team,no:p.number,name:p.name,toi,shifts:p.shifts_est||0,avg:p.avg_shift_s||0,dist:p.distance_ft||0,dpm:toi>0?(p.distance_ft||0)/(toi/60):0,
+      avgmph:p.avg_mph||0,top:p.top_mph||0,sprint:p.sprint||0,oz:p.oz||0,dz:p.dz||0,delta:a1&&a2?Math.round((a2/a1-1)*100):null,low:toi<60} }).filter(x=>x.r>=0);
+  STX={pace,BIN,rows,spacing:spc.map(([a,n])=>n?a/n:null)}; return STX }
+
+function buildStats(){
+  const X=statsData(), R=D.report||{}, TT=R.teams||{}, tn=D.teamNames, col=tn.map(teamCol);
+  const evc=(t,ty)=>allEvents().filter(e=>e.type===ty&&e.team===t).length;
+  const tv=(t,k)=>TT[t]?.[k];
+  // tiles: one per metric, both teams side by side
+  const tiles=[["Score",t=>D.teams[t]?.score??"–",""],["Shots",t=>evc(t,"shot"),""],["Distance",t=>tv(t,"distance_ft")!=null?Math.round(tv(t,"distance_ft")/5280*10)/10:"–","miles"],
+    ["Avg speed",t=>tv(t,"avg_mph")??"–","mph"],["Top speed",t=>tv(t,"top_mph")??"–","mph"],["Sprinting",t=>tv(t,"sprint")!=null?Math.round(tv(t,"sprint")):"–","% of time"],["Puck in their O-zone",t=>tv(t,"puck_oz")!=null?Math.round(tv(t,"puck_oz")):"–","%"]];
+  $("#st_tiles").innerHTML=tiles.map(([k,f,u])=>`<div class="st-tile"><span>${k}</span><div class="vs2">${tn.map((t,i)=>`<b style="color:${col[i]}">${f(t)}</b>`).join(`<em>vs</em>`)}${u?`<em>${u}</em>`:""}</div></div>`).join("");
+  // team comparison bars
+  const cmp=[["Score",t=>+(D.teams[t]?.score||0)],["Shots",t=>evc(t,"shot")],["Zone entries",t=>evc(t,"zone_entry")],["Faceoffs",t=>evc(t,"faceoff")],["Hits",t=>evc(t,"hit")],["Penalties",t=>evc(t,"penalty")],
+    ["Slot shots",t=>allEvents().filter(e=>e.type==="shot"&&e.team===t&&shotQ(e)?.lvl===2).length],["Avg spacing (ft)",t=>Math.round(X.spacing[tn.indexOf(t)]||0)],["Distance (ft)",t=>Math.round(tv(t,"distance_ft")||0)],["Sprint %",t=>Math.round(tv(t,"sprint")||0)],["Puck in O-zone %",t=>Math.round(tv(t,"puck_oz")||0)]];
+  $("#st_cmp").innerHTML=`<div class="st-cmp" style="margin-bottom:12px">${tn.map((t,i)=>`<div class="${i?"r":"l"}" style="color:${col[i]};font-size:15px">${esc(abbr(t)||t)}</div>${i?"":`<div></div>`}`).join("")}</div>`+
+    cmp.map(([k,f])=>[k,f(tn[0]),f(tn[1])]).filter(([,a,b])=>a+b>0).map(([k,a,b])=>{ const s=(a+b)||1; return `<div class="st-cmp"><div class="l">${a.toLocaleString()}</div><div class="m"><span>${k}</span><div class="bar"><i style="width:${a/s*100}%;background:${col[0]}"></i><i style="width:${b/s*100}%;background:${col[1]}"></i></div></div><div class="r">${b.toLocaleString()}</div></div>` }).join("");
+  // table
+  const sel=$("#st_team"); if(sel.options.length<2) for(const t of tn) sel.add(new Option(t,t)); sel.onchange=()=>drawStTable(); drawStTable();
+  // zone tilt
+  const tilt=X.rows.filter(x=>!x.low).sort((a,b)=>(b.oz-b.dz)-(a.oz-a.dz));
+  $("#st_tilt").innerHTML=`<div class="st-trow" style="cursor:default"><span></span><span style="text-align:right;font:500 10px var(--f-mono);letter-spacing:.1em">◀ DEFENSIVE</span><span style="font:500 10px var(--f-mono);letter-spacing:.1em">OFFENSIVE ▶</span></div>`+
+    tilt.map(x=>`<div class="st-trow" data-r="${x.r}"><span class="nm"><b style="color:${teamCol(x.team)}">#${x.no}</b> ${esc(lastName(x.name))}</span><span class="dz"><i style="width:${x.dz}%;background:#d6453d" title="Defensive zone ${x.dz}%"></i></span><span class="oz"><i style="width:${x.oz}%;background:var(--ok)" title="Offensive zone ${x.oz}%"></i></span></div>`).join("");
+  $("#st_tilt").querySelectorAll("[data-r]").forEach(e=>e.onclick=()=>openReport(+e.dataset.r));
+  // shot quality
+  const shots=allEvents().filter(e=>e.type==="shot"&&shotQ(e)), gl=allEvents().filter(e=>e.type==="goal");
+  $("#st_xg").innerHTML=tn.map((t,i)=>{ const S=shots.filter(e=>e.team===t), q=S.map(shotQ), xg=q.reduce((a,x)=>a+x.xg,0), by=[0,1,2].map(l=>q.filter(x=>x.lvl===l).length);
+    return `<div class="st-cmp" style="grid-template-columns:110px minmax(0,1fr) 70px"><div class="l" style="color:${col[i]};font-size:15px">${esc(abbr(t)||t)}</div><div class="m"><span>${S.length} shots · ${by[2]} slot · ${by[1]} mid · ${by[0]} outside</span><div class="bar">${[2,1,0].map(l=>`<i style="width:${S.length?by[l]/S.length*100:0}%;background:${col[i]};opacity:${[.35,.65,1][l]}"></i>`).join("")}</div></div><div class="r" title="Expected goals: a rough guess of how many goals these shots are worth, based on where they came from">${xg.toFixed(1)} <span class="hint">xG</span></div></div>` }).join("")+
+    `<div class="hint">xG = expected goals, a rough score of how dangerous a team's shots were based on where they came from. Scoreboard at the end of this video: ${tn.map(t=>`${esc(abbr(t)||t)} ${D.teams[t]?.score??"–"}`).join(", ")}.</div>`;
+  $("#st_shotinfo").textContent=`${shots.length} shots located`;
+  $("#st_reels").innerHTML=`<button class="btn primary" data-reel="">Game highlights</button>`+tn.map((t,i)=>`<button class="btn" data-reel="${esc(t)}"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col[i]}"></i>${esc(abbr(t)||t)} highlights</button>`).join("");
+  $("#st_reels").querySelectorAll("[data-reel]").forEach(b=>b.onclick=()=>playReel(teamReel(b.dataset.reel||null)));
+  // player links
+  const pl=X.rows.slice().sort((a,b)=>tn.indexOf(a.team)-tn.indexOf(b.team)||a.no-b.no);
+  $("#st_links").innerHTML=pl.map(x=>`<div class="st-link"><span><span class="no" style="background:${teamCol(x.team)}">${x.no}</span>${esc(x.name)}</span><span><button class="ib" data-open="${x.r}">Open</button><button class="ib" data-copy="${x.r}">Copy link</button></span></div>`).join("");
+  $("#st_links").querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ const ok=await copyText(playerLink(+b.dataset.copy)); b.textContent=ok?"Copied":"Copy failed"; setTimeout(()=>b.textContent="Copy link",1800) });
+  $("#st_links").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openReport(+b.dataset.open));
+  $("#st_copyall").onclick=async()=>{ const txt=tn.map(t=>t+"\n"+pl.filter(x=>x.team===t).map(x=>`#${x.no} ${x.name}: ${playerLink(x.r)}`).join("\n")).join("\n\n"); const ok=await copyText(txt); $("#st_copyall").textContent=ok?"Copied all":"Copy failed"; setTimeout(()=>$("#st_copyall").textContent="Copy all links",1800) };
+  requestAnimationFrame(()=>{ drawPace(); drawScatter($("#st_motor"),X.rows.filter(x=>!x.low),x=>x.dpm,x=>x.avgmph,"ft / min","mph");
+    drawScatter($("#st_role"),X.rows.filter(x=>!x.low),x=>x.oz,x=>x.dz,"O-zone %","D-zone %",[0,100],[0,100]);
+    drawShotMap(shots,gl); tn.forEach((t,i)=>{ $("#st_h"+i).innerHTML=`<span style="color:${col[i]}">${esc(t)}</span> · where they skated`; drawRepRink($("#st_heat"+i),capHeat(TT[t]?.heat),col[i]) }) });
+}
+function drawShotMap(shots,goals){ const cv=$("#st_shots"), XY=drawRepRink(cv,null,"#fff"), c=cv.getContext("2d"), pts=[];
+  for(const e of shots){ const q=shotQ(e); const [a,b]=XY(e.x,e.y); const rr=[3.5,5.5,8][q.lvl]; const isG=goals.some(g=>g.team===e.team&&Math.abs(g.t-e.t)<8);
+    c.beginPath(); c.arc(a,b,rr,0,Math.PI*2); c.fillStyle=teamCol(e.team); c.globalAlpha=.85; c.fill(); c.globalAlpha=1; c.strokeStyle="#0a0e13"; c.lineWidth=1; c.stroke();
+    if(isG){ c.beginPath(); c.arc(a,b,rr+4,0,Math.PI*2); c.strokeStyle="#ff5d4f"; c.lineWidth=2.2; c.stroke() } pts.push({e,a,b,rr,q}) }
+  c.font=`700 13px "Barlow Condensed",sans-serif`; D.teamNames.forEach(t=>{ const sg=attackSign(t); const [a,b]=XY(sg*55,-36); c.fillStyle=teamCol(t); c.textAlign="center"; c.fillText((abbr(t)||t)+" shooting →".replace("→",sg>0?"→":"←"),a,b) }); c.textAlign="start";
+  const hit=ev=>{ const r=cv.getBoundingClientRect(); return pts.find(p=>Math.hypot(p.a-(ev.clientX-r.left),p.b-(ev.clientY-r.top))<p.rr+3) };
+  cv.onmousemove=ev=>{ const p=hit(ev); cv.style.cursor=p?"pointer":"default"; cv.title=p?`${abbr(p.e.team)||p.e.team} shot · ${DANGER[p.q.lvl]} · ${p.q.dist} ft · ${fmtHMS(D.t0+p.e.t)}${p.e.r!=null&&ROSTER[p.e.r]?" · "+rName(p.e.r):""}`:"" };
+  cv.onclick=ev=>{ const p=hit(ev); if(p){ setView("film"); seek(Math.max(0,p.e.t-5),true); window.scrollTo({top:0,behavior:"smooth"}) } } }
+function capHeat(h){ if(!h||!h.length) return h; const v=h.flat().filter(x=>x>0).sort((a,b)=>a-b); if(!v.length) return h;
+  const lo=v[Math.floor(v.length*.35)], hi=v[Math.floor(v.length*.92)]; return h.map(r=>r.map(x=>x<=lo?0:Math.pow(Math.min(x,hi)-lo,1.6))) }
+function drawStTable(){
+  const X=statsData(), tm=$("#st_team").value, k=STSORT.k, d=STSORT.d;
+  const cols=[["no","#"],["name","Player"],["toi","TOI"],["shifts","Shifts"],["avg","Avg shift"],["dist","Distance ft"],["dpm","Ft / min"],["avgmph","Avg mph"],["top","Top mph"],["sprint","Sprint %"],["tilt","Zone tilt"],["delta","Pace shift"]];
+  const val=(x,k)=>k==="tilt"?x.oz-x.dz:k==="name"?x.name:x[k]??-999;
+  const rows=X.rows.filter(x=>!tm||x.team===tm).sort((a,b)=>{const A=val(a,k),B=val(b,k); return (typeof A==="string"?A.localeCompare(B):A-B)*d});
+  $("#st_table").innerHTML=`<thead><tr>${cols.map(([c,l])=>`<th data-k="${c}" class="${c===k?"on":""}">${l}${c===k?(d<0?" ▾":" ▴"):""}</th>`).join("")}</tr></thead><tbody>${rows.map(x=>`<tr data-r="${x.r}" class="${x.low?"low":""}">
+    <td><span class="no" style="background:${teamCol(x.team)}">${x.no}</span></td><td class="nm">${esc(x.name)}</td><td>${fmtMS(x.toi)}</td><td>${x.shifts}</td><td>${Math.round(x.avg)}s</td><td>${Math.round(x.dist).toLocaleString()}</td><td>${Math.round(x.dpm)}</td>
+    <td>${x.avgmph}</td><td>${x.top}</td><td>${Math.round(x.sprint)}</td><td><span class="st-mini" title="D-zone ${x.dz}% · O-zone ${x.oz}%"><i style="width:${x.dz}%;background:#d6453d"></i><i style="width:${100-x.dz-x.oz}%;background:#3a4a5c"></i><i style="width:${x.oz}%;background:var(--ok)"></i></span></td>
+    <td class="${x.delta==null?"":x.delta>=0?"up":"dn"}">${x.delta==null?"–":(x.delta>0?"+":"")+x.delta+"%"}</td></tr>`).join("")}</tbody>`;
+  $("#st_table").querySelectorAll("th").forEach(th=>th.onclick=()=>{ const c=th.dataset.k; STSORT={k:c,d:STSORT.k===c?-STSORT.d:(c==="name"||c==="no"?1:-1)}; drawStTable() });
+  $("#st_table").querySelectorAll("tbody tr").forEach(tr=>tr.onclick=()=>openReport(+tr.dataset.r));
+}
+function stCanvas(cv){ const p=window.devicePixelRatio||1, bb=cv.getBoundingClientRect(); cv.width=Math.round(bb.width*p); cv.height=Math.round(bb.height*p); const c=cv.getContext("2d"); c.setTransform(p,0,0,p,0,0); return [c,bb.width,bb.height] }
+function drawPace(){
+  const X=statsData(), cv=$("#st_pace"), [c,W,H]=stCanvas(cv), L=40,Rm=10,Tm=10,B=24, all=X.pace.flat().filter(v=>v!=null);
+  if(!all.length){ c.fillStyle="#8796a8"; c.fillText("No speed data",10,20); return }
+  const lo=Math.floor(Math.min(...all)-0.5), hi=Math.ceil(Math.max(...all)+0.5), nb=X.pace[0].length;
+  const px=i=>L+(W-L-Rm)*(i+0.5)/nb, py=v=>Tm+(H-Tm-B)*(1-(v-lo)/(hi-lo)), tx=t=>L+(W-L-Rm)*t/(D.dur||1);
+  c.font=`500 10px "IBM Plex Mono",monospace`; c.fillStyle="#8796a8"; c.strokeStyle="#223041"; c.lineWidth=1;
+  for(let v=lo;v<=hi;v++){ const y=py(v); c.beginPath(); c.moveTo(L,y); c.lineTo(W-Rm,y); c.stroke(); c.fillText(v+" mph",2,y+3) }
+  const step=D.dur>1200?300:120; for(let t=0;t<=D.dur;t+=step){ const x=tx(t); c.fillText(fmtHMS(D.t0+t),Math.min(W-50,Math.max(L,x-20)),H-6) }
+  for(const g of (D.goals||[])){ const x=tx(g.t); if(x<L||x>W) continue; c.strokeStyle="rgba(255,93,79,.7)"; c.setLineDash([3,3]); c.beginPath(); c.moveTo(x,Tm); c.lineTo(x,H-B); c.stroke(); c.setLineDash([]);
+    c.fillStyle=teamCol(g.team); c.fillText("GOAL "+(abbr(g.team)||""),Math.min(W-60,x+3),Tm+10) }
+  X.pace.forEach((arr,k)=>{ const colr=teamCol(D.teamNames[k]); c.strokeStyle=colr; c.lineWidth=2.2; c.beginPath(); let pen=false;
+    arr.forEach((v,i)=>{ if(v==null){pen=false;return} const x=px(i),y=py(v); pen?c.lineTo(x,y):c.moveTo(x,y); pen=true }); c.stroke();
+    c.globalAlpha=.12; c.fillStyle=colr; let run=[];
+    const flush=()=>{ if(run.length>1){ c.beginPath(); c.moveTo(run[0][0],H-B); for(const [x,y] of run) c.lineTo(x,y); c.lineTo(run[run.length-1][0],H-B); c.closePath(); c.fill() } run=[] };
+    arr.forEach((v,i)=>{ if(v==null){flush();return} run.push([px(i),py(v)]) }); flush(); c.globalAlpha=1 });
+  $("#st_pacelegend").innerHTML=D.teamNames.map(t=>`<span><i style="background:${teamCol(t)}"></i>${esc(t)}</span>`).join("")+`<span>Each point = 30 s of play, smoothed · dashed lines = goals · click the chart to watch that moment</span>`;
+  cv.onclick=e=>{ const r=cv.getBoundingClientRect(); const t=(e.clientX-r.left-L)/(W-L-Rm)*(D.dur||1); setView("film"); seek(Math.max(0,t),true) };
+}
+function drawScatter(cv,rows,fx,fy,lx,ly,dx,dy){
+  const [c,W,H]=stCanvas(cv), L=34,Rm=12,Tm=12,B=26; if(!rows.length) return;
+  const xs=rows.map(fx), ys=rows.map(fy), pad=(a,b)=>[a-(b-a)*.08-0.01,b+(b-a)*.08+0.01];
+  const [x0,x1]=dx||pad(Math.min(...xs),Math.max(...xs)), [y0,y1]=dy||pad(Math.min(...ys),Math.max(...ys));
+  const X=v=>L+(W-L-Rm)*(v-x0)/(x1-x0), Y=v=>Tm+(H-Tm-B)*(1-(v-y0)/(y1-y0));
+  c.strokeStyle="#223041"; c.lineWidth=1; c.strokeRect(L,Tm,W-L-Rm,H-Tm-B);
+  const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length; c.setLineDash([4,4]); c.beginPath(); c.moveTo(X(mx),Tm); c.lineTo(X(mx),H-B); c.moveTo(L,Y(my)); c.lineTo(W-Rm,Y(my)); c.stroke(); c.setLineDash([]);
+  c.font=`500 10px "IBM Plex Mono",monospace`; c.fillStyle="#8796a8"; c.fillText(lx,W-Rm-c.measureText(lx).width,H-8); c.fillText(Math.round(x0),L,H-8);
+  c.save(); c.translate(11,Tm+c.measureText(ly).width); c.rotate(-Math.PI/2); c.fillText(ly,0,0); c.restore();
+  const pts=rows.map(x=>({x,X:X(fx(x)),Y:Y(fy(x))}));
+  for(const p of pts){ c.fillStyle=teamCol(p.x.team); c.beginPath(); c.arc(p.X,p.Y,10,0,Math.PI*2); c.fill(); c.strokeStyle="rgba(0,0,0,.45)"; c.stroke();
+    c.fillStyle="#fff"; c.font=`700 12px "Barlow Condensed",sans-serif`; const s=String(p.x.no); c.fillText(s,p.X-c.measureText(s).width/2,p.Y+4) }
+  const hit=e=>{ const r=cv.getBoundingClientRect(), mx_=e.clientX-r.left, my_=e.clientY-r.top; return pts.find(p=>Math.hypot(p.X-mx_,p.Y-my_)<11) };
+  cv.onmousemove=e=>{ const p=hit(e); cv.style.cursor=p?"pointer":"default"; cv.title=p?`#${p.x.no} ${p.x.name} · ${lx} ${Math.round(fx(p.x))} · ${ly} ${Math.round(fy(p.x)*10)/10}`:"" };
+  cv.onclick=e=>{ const p=hit(e); if(p) openReport(p.x.r) };
+}
+window.addEventListener("resize",()=>{ if(VIEW==="stats") buildStats(); else updShiftChart(true) });
+/* ---------- which way each team attacks (from where its shots and zone entries happen) ---------- */
+let ATT=null;
+function attackSign(team){ if(!ATT){ ATT={}; for(const t of D.teamNames){ const xs=allEvents().filter(e=>e.team===t&&(e.type==="shot"||e.type==="zone_entry")&&e.x!=null).map(e=>Math.sign(e.x));
+  const s=xs.reduce((a,b)=>a+b,0); ATT[t]=s===0?(t===D.teamNames[0]?1:-1):Math.sign(s) } } return ATT[team]||1 }
+
+/* ---------- shot quality: where on the ice the shot came from ---------- */
+function shotQ(e){ if(e.x==null||e.y==null||!e.team) return null; const sg=attackSign(e.team), R=D.rink, nx=sg*R.gx;
+  const ax=sg*e.x, dx=R.gx-ax, dist=Math.hypot(nx-e.x,e.y), ang=Math.atan2(Math.abs(e.y),Math.max(0.1,dx))*180/Math.PI;
+  const hp=[[R.gx,4],[R.ezx,24],[R.ezx-15,10],[R.ezx-15,-10],[R.ezx,-24],[R.gx,-4]];   // the "home plate" slot: posts → faceoff dots → top of the circles
+  const inPoly=(x,y,P)=>{ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ const [xi,yi]=P[i],[xj,yj]=P[j]; if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) c=!c } return c };
+  let lvl; if(ax>R.gx) lvl=0; else if(inPoly(ax,e.y,hp)) lvl=2; else if(dist<=50&&ang<=65) lvl=1; else lvl=0;
+  return {lvl,dist:Math.round(dist),xg:[0.03,0.09,0.24][lvl]} }
+const DANGER=["Outside","Mid-range","Slot"];
+
+/* ---------- team shape and spacing ---------- */
+let SHAPE=-1;  // -1 off, else team index
+function teamShape(boxes,k){
+  const pts=boxes.filter(b=>b[2]===0&&b[10]===k&&b[7]!=null&&!ignored(b)); if(pts.length<3) return null;
+  const team=D.teamNames[k], sg=attackSign(team);
+  const nn=pts.map((a,i)=>Math.min(...pts.filter((_,j)=>j!==i).map(b=>Math.hypot(a[7]-b[7],a[8]-b[8]))));
+  const spacing=nn.reduce((a,b)=>a+b,0)/nn.length;
+  const depth=pts.map(b=>sg*b[7]).sort((a,b)=>b-a), groups=[1]; for(let i=1;i<depth.length;i++){ if(depth[i-1]-depth[i]>12) groups.push(1); else groups[groups.length-1]++ }
+  const ys=pts.map(b=>b[8]); return {pts,spacing,width:Math.max(...ys)-Math.min(...ys),depth:depth[0]-depth[depth.length-1],label:groups.join("-"),n:pts.length,team}
+}
+function hull(P){ const p=[...P].sort((a,b)=>a[0]-b[0]||a[1]-b[1]); if(p.length<3) return p; const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lo=[],up=[]; for(const q of p){ while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0) lo.pop(); lo.push(q) }
+  for(const q of p.slice().reverse()){ while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0) up.pop(); up.push(q) } return lo.slice(0,-1).concat(up.slice(0,-1)) }
+function drawShapeVideo(c,sx,sy){ if(SHAPE<0||!cur||DRAW) return; const S=teamShape(cur.boxes,SHAPE); if(!S) { shapeHud(c,null); return }
+  const col=teamCol(S.team), feet=S.pts.map(b=>[vrect.x+(b[3]+b[5])/2*sx, vrect.y+b[6]*sy]);
+  const H=hull(feet); c.save(); c.fillStyle=col; c.globalAlpha=.13; c.beginPath(); H.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.closePath(); c.fill();
+  c.globalAlpha=.95; c.strokeStyle=col; c.lineWidth=2; c.setLineDash([6,4]); c.stroke(); c.setLineDash([]);
+  c.lineWidth=1.5; c.globalAlpha=.8; c.strokeStyle="#fff";   // link each skater to his nearest teammate
+  const done=new Set(); feet.forEach((a,i)=>{ let bj=-1,bd=1e9; S.pts.forEach((b,j)=>{ if(j===i) return; const d=Math.hypot(S.pts[i][7]-b[7],S.pts[i][8]-b[8]); if(d<bd){bd=d;bj=j} });
+    if(bj>=0){ const b=feet[bj]; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke();
+      const key=Math.min(i,bj)+"-"+Math.max(i,bj); if(!done.has(key)){ done.add(key); c.fillStyle="rgba(8,12,17,.85)"; const mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2, t=Math.round(bd)+" ft"; c.font=`600 11px "IBM Plex Mono",monospace`; const w=c.measureText(t).width+8; roundRect(c,mx-w/2,my-8,w,16,4); c.fill(); c.fillStyle="#fff"; c.fillText(t,mx-w/2+4,my+1) } } });
+  for(const [x,y] of feet){ c.globalAlpha=1; c.fillStyle=col; c.beginPath(); c.arc(x,y,4,0,Math.PI*2); c.fill() }
+  c.restore(); shapeHud(c,S) }
+function shapeHud(c,S){ const team=D.teamNames[SHAPE], col=teamCol(team), w=210, h=70, x=vrect.x+10, y=vrect.y+vrect.h-h-14;
+  c.save(); c.fillStyle="rgba(8,12,17,.86)"; roundRect(c,x,y,w,h,8); c.fill(); c.fillStyle=col; c.fillRect(x,y,4,h);
+  c.font=`500 10px "IBM Plex Mono",monospace`; c.fillStyle="#8796a8"; c.textBaseline="alphabetic"; c.fillText((abbr(team)||team).toUpperCase()+" SHAPE",x+12,y+16); c.fillText("SPACING",x+118,y+16);
+  c.font=`700 26px "Barlow Condensed",sans-serif`; c.fillStyle="#fff";
+  if(S){ c.fillText(S.label,x+12,y+44); c.fillText(Math.round(S.spacing)+" ft",x+118,y+44); c.font=`500 10px "IBM Plex Mono",monospace`; c.fillStyle="#8796a8"; c.fillText(`${S.n} IN VIEW · ${Math.round(S.width)}×${Math.round(S.depth)} FT AREA`,x+12,y+h-8) }
+  else { c.font=`600 14px "IBM Plex Sans",sans-serif`; c.fillText("Not enough players in view",x+12,y+42) }
+  c.restore(); c.textBaseline="middle" }
+function drawShapeRink(c){ if(SHAPE<0||!cur) return; const S=teamShape(cur.boxes,SHAPE); if(!S) return; const col=teamCol(S.team);
+  const H=hull(S.pts.map(b=>rinkXY(b[7],b[8]).slice(0,2))); c.save(); c.fillStyle=col; c.globalAlpha=.18; c.beginPath(); H.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.closePath(); c.fill(); c.globalAlpha=.9; c.strokeStyle=col; c.lineWidth=1.5; c.setLineDash([4,3]); c.stroke(); c.restore() }
+function setShape(v){ SHAPE=v; const b=$("#tShape"); b.textContent="Shape: "+(v<0?"off":(abbr(D.teamNames[v])||D.teamNames[v])); b.classList.toggle("on",v>=0); b.setAttribute("aria-pressed",v>=0); draw() }
+$("#tShape").onclick=()=>{ if(!D) return; setShape(SHAPE<0?0:SHAPE===0?1:-1) };
+document.addEventListener("keydown",e=>{ if(e.target.closest("select,input,textarea")||e.ctrlKey||e.metaKey||e.altKey||!D) return; if(e.key.toLowerCase()==="k"){ e.preventDefault(); $("#tShape").click() } });
+
+/* ---------- quick tags ---------- */
+function buildTagBar(){ $("#tagbtns").innerHTML=Object.entries(TYPES).filter(([,t])=>t.key).map(([k,t])=>`<button class="tchip" data-k="${k}" title="Tag a ${t.label.toLowerCase()} at this moment (${t.key.toUpperCase()})"><i style="background:${t.col}"></i>${t.label}<kbd>${t.key.toUpperCase()}</kbd></button>`).join("");
+  $("#tagbtns").querySelectorAll(".tchip").forEach(b=>b.onclick=()=>{ vid.pause(); addTag(b.dataset.k); showTab("ev"); setTimeout(()=>{ const ed=document.querySelector("#evlist .editor,#ed_note"); if(ed) ed.scrollIntoView({block:"nearest",behavior:"smooth"}) },80) }) }
+
+/* ---------- highlight reels ---------- */
+function reelSpans(evs,pre=6,post=3){ const sp=evs.map(e=>[Math.max(0,e.t-pre),Math.min(D.dur,e.t+post)]).sort((a,b)=>a[0]-b[0]), out=[];
+  for(const s of sp){ const l=out[out.length-1]; if(l&&s[0]<=l[1]+1) l[1]=Math.max(l[1],s[1]); else out.push([...s]) } return out }
+function playReel(spans,r){ if(!spans.length){ flash("Nothing to put in this reel yet."); return } setView("film"); if(r!=null) follow(r,null); else follow(null,null);
+  queue=spans.map(([a,b])=>[a,b]); qi=0; ACTIVE=null; $("#stopall").hidden=false; $("#msg").hidden=true; seek(queue[0][0],true); window.scrollTo({top:0,behavior:"smooth"}) }
+const HL_TYPES=["goal","shot","chance","zone_entry","takeaway","hit","save"];
+function playerReel(r){ return reelSpans(allEvents().filter(e=>HL_TYPES.includes(e.type)&&(e.r===r||(e.type==="goal"&&(e.rs||[]).includes(r)))).filter(e=>e.type!=="shot"||!shotQ(e)||shotQ(e).lvl>0||e.r===r)) }
+function teamReel(team){ return reelSpans(allEvents().filter(e=>(!team||e.team===team)&&(e.type==="goal"||e.type==="chance"||(e.type==="shot"&&shotQ(e)&&shotQ(e).lvl===2)))) }
+
+/* ---------- player links ---------- */
+function playerHash(r){ const p=ROSTER[r]; return "p-"+D.teamNames.indexOf(p.team)+"-"+(p.number!=null?p.number:encodeURIComponent(lastName(p.name))) }
+function playerLink(r){ return (SHARE_BASE||location.href.split("#")[0])+"#"+playerHash(r) }
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); return true }catch(e){ return false } }
+function openWantedPlayer(){ let h=""; try{ h=location.hash.slice(1) }catch(e){} const m=h.match(/^p-(\d+)-(.+)$/); if(!m) return;
+  const team=D.teamNames[+m[1]], key=decodeURIComponent(m[2]); const r=ROSTER.findIndex(p=>p.team===team&&(String(p.number)===key||lastName(p.name)===key)); if(r>=0){ follow(r,null); openReport(r) } }
+
+/* ---------- shift-by-shift effort, fatigue and bursts for one player ---------- */
+function shiftEffort(r,shifts){
+  const out=[]; let bursts=0, maxAcc=0; const accs=[];
+  for(const [a,d] of shifts){ const i0=ub(FT,a), sp=[], half=a+d/2; let s1=0,n1=0,s2=0,n2=0; const prev={}; let lastBurst=-9;
+    for(let i=i0;i<F.length&&F[i][0]<=a+d;i++){ const t=F[i][0];
+      for(const b of F[i][1]){ if(b[2]===2||b[9]==null||whoOf(b)!==r) continue; const v=b[9]; if(t<half){s1+=v;n1++} else {s2+=v;n2++}
+        const p=prev[b[0]]; if(p&&t-p[0]>0.05&&t-p[0]<=0.4){ const acc=(v-p[1])/(t-p[0]); if(acc<14){ if(acc>2) accs.push(acc); if(acc>7&&v>11&&t-lastBurst>2){ bursts++; lastBurst=t } } }
+        prev[b[0]]=[t,v] } }
+    const n=n1+n2; out.push({a,d,avg:n>5?(s1+s2)/n:null,first:n1>3?s1/n1:null,second:n2>3?s2/n2:null}) }
+  accs.sort((a,b)=>a-b); maxAcc=accs.length>=10?accs[Math.floor(accs.length*0.9)]:0; return {out,bursts,maxAcc} }
+function repExtras(r,shifts,col){
+  const el=$("#rep_x2"); if(!el) return; const E=shiftEffort(r,shifts), S=E.out.filter(x=>x.avg!=null);
+  if(!S.length){ el.innerHTML=""; return } const mx=Math.max(...S.map(x=>x.avg),1);
+  const thirds=Math.floor(S.length/3), early=thirds?S.slice(0,thirds).reduce((a,x)=>a+x.avg,0)/thirds:null, late=thirds?S.slice(-thirds).reduce((a,x)=>a+x.avg,0)/thirds:null;
+  const inShift=S.filter(x=>x.first&&x.second&&x.d>=20).map(x=>x.second/x.first-1), inAvg=inShift.length?inShift.reduce((a,b)=>a+b,0)/inShift.length:null;
+  const flags=[];
+  if(early&&late){ const ch=Math.round((late/early-1)*100); flags.push(ch<=-8?["#ff5d4f","Fatigue",`His speed in his last shifts was ${-ch}% lower than in his first shifts.`]:ch>=8?["#5fd39a","Strong finish",`He was ${ch}% faster in his last shifts than his first.`]:["#8796a8","Steady",`His pace held steady across the period (${ch>0?"+":""}${ch}%).`]) }
+  if(inAvg!=null){ const ch=Math.round(inAvg*100); if(ch<=-10) flags.push(["#ffa94d","Long shifts",`On average he slowed ${-ch}% in the second half of a shift. Shorter shifts may help.`]) }
+  const long=S.filter(x=>x.d>=70).length; if(long) flags.push(["#ffa94d","Shift length",`${long} shift${long>1?"s":""} over 70 seconds.`]);
+  el.innerHTML=`<div class="rep-card"><h4>Shift by shift · average speed</h4>
+    <div class="rep-sh">${E.out.map((x,k)=>x.avg==null?`<button disabled style="height:4%;background:var(--panel-2)" title="Shift ${k+1}: not enough tracking"></button>`:`<button data-t="${x.a}" style="height:${Math.max(6,x.avg/mx*100)}%;background:${col};opacity:${x.second&&x.first&&x.second<x.first*0.88?.55:1}" title="Shift ${k+1} · ${fmtHMS(D.t0+x.a)} · ${Math.round(x.d)}s · ${x.avg.toFixed(1)} mph"><span>${x.avg.toFixed(1)}</span></button>`).join("")}</div>
+    <div class="rep-bl"><span>1st shift</span><span>faded bar = he slowed down during that shift · ${E.bursts} speed bursts · typical hard push ${E.maxAcc?E.maxAcc.toFixed(1):"–"} mph/s</span><span>last shift</span></div>
+    <div class="rep-flags">${flags.map(([c,k,t])=>`<div class="rep-flag"><b style="background:${c}22;color:${c};border:1px solid ${c}55">${k}</b><span>${t}</span></div>`).join("")}</div></div>`;
+  el.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{ $("#rep").hidden=true; document.body.style.overflow=""; follow(r,null); seek(+b.dataset.t,true) });
+}
+
+/* ---------- name the unknowns ---------- */
+let RV=null;
+function unknownChains(){ const seen=new Set(), out=[];
+  for(const p of Object.values(PIECE)){ if(seen.has(p.gid)) continue; const ch=chainOf(p.gid); ch.forEach(g=>seen.add(g));
+    const ps=ch.map(g=>PIECE[g]).filter(Boolean); if(ps.some(q=>pieceName(q.gid)!=null||ignored(q.box1))) continue; if(ps.some(q=>q.box1[2]===1)) continue;
+    const dur=ps.reduce((a,q)=>a+(q.t1-q.t0),0); if(dur<4) continue; const big=ps.reduce((a,q)=>q.t1-q.t0>a.t1-a.t0?q:a,ps[0]);
+    out.push({gids:ch,dur,piece:big,team:ps.find(q=>q.team!=null)?.team}) }
+  return out.sort((a,b)=>b.dur-a.dur) }
+function bestFrame(p){ let best=null,bh=0; const i0=ub(FT,p.t0)-1, i1=ub(FT,p.t1); const step=Math.max(1,Math.floor((i1-i0)/40));
+  for(let i=Math.max(0,i0);i<i1;i+=step){ const b=F[i][1].find(x=>x[0]===p.gid); if(b&&b[6]-b[4]>bh){ bh=b[6]-b[4]; best=F[i][0] } } return best??(p.t0+p.t1)/2 }
+function startReview(){ follow(null,null); RV={list:unknownChains(),i:0,done:0,total:0}; RV.total=RV.list.reduce((a,x)=>a+x.dur,0); setView("film"); showReview() }
+function endReview(){ RV=null; HLG=null; $("#review").hidden=true; draw() }
+async function showReview(){ const el=$("#review"); if(!RV) return; if(RV.i>=RV.list.length){ el.innerHTML=`<div class="rv-top"><span class="rv-q">All done</span><button class="btn" id="rv_x">Close</button></div><div class="hint">You named ${RV.done} players. Every stat and report on this page uses the new names.</div>`; el.hidden=false; $("#rv_x").onclick=endReview; HLG=null; draw(); return }
+  const it=RV.list[RV.i], team=it.team!=null?D.teamNames[it.team]:null, left=RV.list.slice(RV.i).reduce((a,x)=>a+x.dur,0);
+  HLG=it.piece.gid; vid.pause(); playing=false; seek(bestFrame(it.piece),false); vid.pause();
+  el.innerHTML=`<div class="rv-top"><span class="rv-q">Who is this?</span><span class="hint">${RV.i+1} of ${RV.list.length} · ${fmtMS(it.dur)} of ice time · ${fmtMS(left)} still unnamed</span></div>
+    <div class="rv-prog"><i style="width:${(1-left/(RV.total||1))*100}%"></i></div>
+    <div class="hint">The highlighted player${team?` (looks like <b style="color:${teamCol(team)}">${esc(team)}</b>)`:""}. Naming him also names the ${it.gids.length>1?it.gids.length+" linked pieces of":"rest of"} his track.</div>
+    <div class="rv-row"><select class="btn" id="rv_sel"><option value="">Pick the player…</option>${rosterOptions(null,team)}</select>
+      <button class="btn primary" id="rv_save">Save name</button><button class="btn" id="rv_play">Watch him</button><button class="btn" id="rv_skip">Skip</button><button class="btn" id="rv_ref">Not a player</button><button class="btn" id="rv_x">Done for now</button></div>`;
+  el.hidden=false; el.scrollIntoView({block:"nearest",behavior:"smooth"});
+  $("#rv_save").onclick=async()=>{ const v=$("#rv_sel").value; if(v==="") return; await saveNames(it.gids,+v); RV.done++; RV.i++; showReview() };
+  $("#rv_ref").onclick=async()=>{ await saveNames(it.gids,-1); RV.i++; showReview() };
+  $("#rv_skip").onclick=()=>{ RV.i++; showReview() }; $("#rv_x").onclick=endReview;
+  $("#rv_play").onclick=()=>{ const p=it.piece; queue=[[p.t0,p.t1]]; qi=0; seek(p.t0,true) };
+}
+$("#revbtn").onclick=()=>{ if(D) startReview() };
+
+/* ---------- download a clip as a video file (with the tracking overlay and drawings burned in) ---------- */
+let DL=null, DLNS;
+async function dlNS(){ if(DLNS!==undefined) return DLNS; try{ DLNS=window.claude&&await window.claude.use("downloads") }catch(e){ DLNS=null } return DLNS }
+async function downloadClip(c){
+  if(DL){ flash("A download is already recording."); return } const ns=await dlNS(); if(!ns){ flash("Downloads aren't available in this view."); return }
+  if(typeof MediaRecorder==="undefined"){ flash("This browser can't record video. Try Chrome or Edge."); return }
+  const mime=["video/mp4;codecs=avc1.42E01E","video/mp4","video/webm;codecs=vp9","video/webm"].find(m=>MediaRecorder.isTypeSupported(m)); if(!mime){ flash("This browser can't record video."); return }
+  const W=1280, H=Math.round(1280*D.size[1]/D.size[0]), cv=document.createElement("canvas"); cv.width=W; cv.height=H; const cx=cv.getContext("2d");
+  const stream=cv.captureStream(30), rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:5e6}), chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data) };
+  DL={rec,stop:false,c}; const len=c.t1-c.t0; $("#dlbar").hidden=false; $("#rate").value="1";
+  const paint=()=>{ if(!DL) return; try{ cx.drawImage(vid,0,0,W,H); cx.drawImage(ov,vrect.x*dpr,vrect.y*dpr,vrect.w*dpr,vrect.h*dpr,0,0,W,H) }catch(e){}
+    cx.fillStyle="rgba(8,12,17,.75)"; cx.fillRect(0,H-34,W,34); cx.fillStyle="#fff"; cx.font="600 18px 'Barlow Condensed',sans-serif"; cx.textBaseline="middle"; cx.fillText((c.title||"Clip")+"  ·  "+$("#title").textContent,14,H-17);
+    cx.fillStyle="#8fd0ff"; const tag="FILM ROOM · AI TRACKING"; cx.fillText(tag,W-cx.measureText(tag).width-14,H-17);
+    $("#dltext").textContent=`Recording for download · ${fmtMS(Math.max(0,T-c.t0))} / ${fmtMS(len)}`;
+    if(DL.stop||(!queue&&DL.started)){ finish(); return } requestAnimationFrame(paint) };
+  const finish=()=>{ if(!DL||DL.finishing) return; DL.finishing=true; vid.pause(); rec.onstop=async()=>{ const cancelled=DL.stop; DL=null; $("#dlbar").hidden=true; if(cancelled||!chunks.length) return;
+      const blob=new Blob(chunks,{type:mime.split(";")[0]}), ext=mime.startsWith("video/mp4")?"mp4":"webm", name=(c.title||"clip").replace(/[^\w\- #]+/g,"").trim().replace(/\s+/g,"_").slice(0,60)||"clip";
+      try{ await ns.save({filename:`${name}.${ext}`,data:blob}); flash("Clip downloaded.") }catch(err){ if(err&&err.code!=="declined") flash("The download didn't go through ("+(err&&err.code||"error")+").") } };
+    try{ rec.stop() }catch(e){} };
+  rec.start(500); playClips([c]); DL.started=true; requestAnimationFrame(paint);
+}
+$("#dlstop").onclick=()=>{ if(DL){ DL.stop=true; queue=null; vid.pause() } };
+$("#cllist").addEventListener("click",e=>{ const a=e.target.closest("[data-cact='dl']"); if(!a) return; e.stopPropagation(); const id=a.closest(".clrow").dataset.id; if(CLIPS[id]) downloadClip({id,...CLIPS[id]}) },true);
+
+/* ---------- guided demo: a ~90 s walkthrough of every feature, paced for screen recording ----------
+   A pointer moves and clicks like a person using the page; the feature being shown is spotlit and the rest of the page dims;
+   each chapter opens with a title card. Every step waits for the video to be ready before its clock starts. */
+let DEMO=null, DEMO_D=null;
+function demoWait(ms){ return new Promise((res,rej)=>{ const t0=performance.now(); const iv=setInterval(()=>{ if(!DEMO||DEMO.stop){clearInterval(iv);rej("stop")} else if(performance.now()-t0>=ms){clearInterval(iv);res()} },40) }) }
+async function demoReady(max=5000){ const t0=performance.now(); await demoWait(250);
+  while(performance.now()-t0<max){ if(!vid.seeking&&vid.readyState>=3&&!pendingSeek) return true; await demoWait(120) } return false }
+async function demoSeek(t,andPlay){ playing=false; vid.pause(); seek(t,false); vid.pause(); playing=false; await demoReady(); if(!andPlay){ vid.pause(); playing=false } else { play(true); await demoWait(300) } }
+function demoStageInView(){ if(VIEW!=="film"||!$("#rep").hidden) return false; const r=$("#stage").getBoundingClientRect(); return r.height>50&&r.top>=-60&&r.bottom<=innerHeight+60 }
+function demoCap(t,sub){ demoHost(!demoStageInView()); const c=$("#dcap"); $("#dcap_t").textContent=t; $("#dcap_s").textContent=sub||""; c.hidden=false; c.classList.remove("in"); void c.offsetWidth; c.classList.add("in") }
+function demoFocus(sel){ document.querySelectorAll(".dfocus").forEach(e=>e.classList.remove("dfocus")); const e=typeof sel==="string"?$(sel):sel;
+  if(e){ e.classList.add("dfocus"); const r=e.getBoundingClientRect(); if(r.top<0||r.bottom>innerHeight) e.scrollIntoView({block:r.height>innerHeight*0.8?"start":"center",behavior:"smooth"}) } return e }
+async function demoChapter(n,title){ demoHost(!demoStageInView()); const c=$("#dchap"); $("#dchap_n").textContent=String(n).padStart(2,"0"); $("#dchap_t").textContent=title; $("#dcap").hidden=true;
+  if(!c.classList.contains("fx")) demoFocus("#stage"); else demoFocus(null); c.hidden=false; c.classList.remove("in"); void c.offsetWidth; c.classList.add("in"); await demoWait(1700); c.hidden=true }
+// the pointer
+function demoCursorTo(x,y,ms=900){ const k=$("#dcur"); k.hidden=false; k.style.transition=`transform ${ms}ms cubic-bezier(.45,.05,.25,1)`; k.style.transform=`translate(${x}px,${y}px)`; return demoWait(ms+80) }
+function demoCursorAt(x,y){ const k=$("#dcur"); k.hidden=false; k.style.transition="none"; k.style.transform=`translate(${x}px,${y}px)` }
+async function demoClick(){ const k=$("#dcur"); k.classList.remove("click"); void k.offsetWidth; k.classList.add("click"); await demoWait(350) }
+async function demoPointAt(sel,click){ const e=typeof sel==="string"?$(sel):sel; if(!e) return; const r=e.getBoundingClientRect(); await demoCursorTo(r.left+r.width*0.5,r.top+r.height*0.55); if(click) await demoClick() }
+function boxScreen(b){ const r=ov.getBoundingClientRect(), sx=vrect.w/D.size[0], sy=vrect.h/D.size[1];
+  return [r.left+vrect.x+(b[3]+b[5])/2*sx, r.top+vrect.y+(b[4]*0.35+b[6]*0.65)*sy] }
+function demoPick(){
+  let tBusy=D.cover.length?D.cover[0][0]:0, best=-1;
+  for(let i=0;i<F.length;i+=3){ const n=F[i][1].filter(b=>b[2]!==2&&whoOf(b)!=null).length; if(n>best){best=n;tBusy=F[i][0]} }
+  const runs=[]; ROSTER.forEach((p,r)=>{ if(p.pos==="G") return; for(const [a,b] of (D.pres[r]||[])) if(b-a>=8) runs.push([b-a,r,a,b]) });
+  runs.sort((x,y)=>y[0]-x[0]);
+  const star=ROSTER.findIndex(p=>/zitserman/i.test(p.name)); const sr=runs.filter(x=>x[1]===star); if(sr.length) runs.unshift(sr[0]);
+  const goals=allEvents().filter(e=>e.type==="goal").sort((a,b)=>a.t-b.t);
+  return {tBusy:Math.max(0,tBusy-3), runs, goals};
+}
+function demoDrawing(box){
+  const W=D.size[0], H=D.size[1]; let x1=.42,y1=.4,x2=.48,y2=.55; if(box){x1=box[3]/W;y1=box[4]/H;x2=box[5]/W;y2=box[6]/H}
+  const pad=0.012, fx=(x1+x2)/2, fy=y2, tx=fx<0.5?Math.min(0.9,fx+0.3):Math.max(0.1,fx-0.3), ty=Math.max(0.14,fy-0.2);
+  const arrow=[]; for(let k=0;k<=30;k++){ const u=k/30; arrow.push([fx+(tx-fx)*u, fy+(ty-fy)*u-Math.sin(u*Math.PI)*0.07]) }
+  return {t:+T.toFixed(2), prog:0, strokes:[{tool:"circle",col:"#ffd23f",w:1.3,at:0.08,pts:[[x1-pad,y1-pad],[x2+pad,y2+pad]]},{tool:"arrow",col:"#ff4d4d",w:1.3,at:0.32,pts:arrow}]};
+}
+// captions and chapter cards normally sit on the video; on the Stats page or over a report they float on the page instead
+function demoHost(floating){ const cap=$("#dcap"), ch=$("#dchap");
+  if(floating){ document.body.appendChild(cap); document.body.appendChild(ch); cap.classList.add("fx"); ch.classList.add("fx") }
+  else { $("#stage").appendChild(cap); $("#stage").appendChild(ch); cap.classList.remove("fx"); ch.classList.remove("fx") } }
+async function demoScrollTo(sel,block="center"){ const e=typeof sel==="string"?$(sel):sel; if(!e) return; e.scrollIntoView({block,behavior:"smooth"}); await demoWait(750) }
+async function runDemo(){
+  if(DEMO){ DEMO.stop=true; return }
+  if(!D) return;
+  DEMO={stop:false}; document.body.classList.add("demo"); const btn=$("#demobtn"); btn.textContent="Stop demo"; btn.classList.add("rec");
+  const keep={tagMode,rate:$("#rate").value}; $("#rate").value="1"; const pk=demoPick(); let n=0;
+  const cardR=()=>$("#stage").getBoundingClientRect();
+  const film=async()=>{ if(VIEW!=="film"){ setView("film") } demoHost(false); window.scrollTo({top:0,behavior:"smooth"}); await demoWait(500) };
+  const stats=async()=>{ vid.pause(); playing=false; setView("stats"); demoHost(true); window.scrollTo({top:0}); await demoWait(500) };
+  try{
+    follow(null,null); showTab("ev"); setView("film"); demoHost(false); window.scrollTo({top:0,behavior:"smooth"}); demoFocus(null);
+    { const r=cardR(); demoCursorAt(r.right-60,r.bottom-40) }
+    // intro
+    await demoSeek(pk.tBusy,false); $("#dend_t").textContent=$("#title").textContent; $("#dintro").hidden=false; await demoWait(3500); $("#dintro").hidden=true;
+
+    // AI tracking
+    await demoChapter(++n,"AI tracking");
+    demoCap("Every player tracked and named","Jersey numbers read by AI and matched to the roster, with live speed on every skater");
+    play(true); await demoWait(7000);
+    demoFocus($("#rink").closest(".card")); demoCap("Mapped onto the rink","Every skater's position, live, from a single broadcast camera"); await demoWait(5500);
+
+    // lock on
+    let run=null, box=null;
+    for(const cand of pk.runs.slice(0,8)){ const fr=frameAt(cand[2]+1.5); if(fr&&fr.boxes.some(b=>whoOf(b)===cand[1])){run=cand;break} }
+    if(run){ await demoSeek(run[2]+1.5,false); box=cur&&cur.boxes.find(b=>whoOf(b)===run[1]) }
+    if(run){
+      await demoChapter(++n,"Lock onto a player");
+      demoCap("Click any player","The film room locks on and stays with him, even when he leaves the screen");
+      const [x,y]=boxScreen(box); await demoCursorTo(x,y,1100); await demoClick(); follow(run[1],null); play(true); await demoWait(1200);
+      $("#dcur").hidden=true; await demoWait(7500);
+      demoFocus("#pcard"); demoCap("His game, live","Speed, top speed, distance, time in each zone, every shift and tag"); await demoWait(6500);
+    }
+
+    // shift chart
+    await demoChapter(++n,"Every shift, every player"); demoFocus(null); vid.pause(); playing=false;
+    await demoScrollTo("#shiftcard"); demoFocus("#shiftcard");
+    demoCap("The whole bench at a glance","Every shift for every player, with goals and shots on top. Rows light up when they're on the ice");
+    await demoPointAt("#shiftchart .sc-row.on .sc-tr button, #shiftchart .sc-tr button",false); await demoWait(4500);
+    const sb=[...document.querySelectorAll("#shiftchart .sc-tr button[data-r]")].find(b=>+b.dataset.t>T+30)||document.querySelector("#shiftchart .sc-tr button[data-r]");
+    if(sb){ await demoPointAt(sb,true); sb.click(); await demoWait(400); await film(); demoFocus("#stage"); demoCap("Click a shift to watch it","Straight to that shift, already following the player"); $("#dcur").hidden=true; await demoWait(5500) }
+
+    // AI events
+    await demoChapter(++n,"AI event tagging"); follow(null,null);
+    await demoScrollTo(".evcard","start"); demoFocus(".evcard"); demoCap("Every event tagged by AI","Goals, shots, saves, faceoffs, hits and zone entries from the video, the scoreboard and the TV commentary");
+    const goalChip=document.querySelector('#typechips [data-k="goal"]'); if(goalChip){ await demoPointAt(goalChip,false) }
+    await demoWait(4000);
+    const g=pk.goals[0];
+    if(g){ const row=document.querySelector(`#evlist .evrow[data-id="${CSS.escape(g.id)}"]`); if(row){ row.scrollIntoView({block:"nearest"}); await demoPointAt(row,true) }
+      await film(); await demoSeek(Math.max(0,g.t-6),true); demoFocus("#stage"); demoCap("Goal, found on the scoreboard","Jump straight to it, or play every goal back to back"); $("#dcur").hidden=true; await demoWait(8000) }
+    if(!$("#cmtcard").hidden){ demoFocus("#cmtcard"); demoCap("The commentary, synced","What the broadcasters said, lined up with the play. It's how the AI knows who scored"); await demoWait(5000) }
+
+    // tag it yourself
+    await demoChapter(++n,"Tag it yourself"); vid.pause(); playing=false;
+    demoFocus("#tagbar"); demoCap("One click or one key","Takeaways, giveaways, scoring chances, notes. Tag the moment, add a note, it's saved for the whole staff");
+    for(const k of ["takeaway","giveaway","chance","note"]){ const c=document.querySelector(`#tagbtns [data-k="${k}"]`); if(c) await demoPointAt(c,false); await demoWait(500) }
+    await demoWait(2500);
+
+    // drawing
+    await demoChapter(++n,"Draw on the play");
+    playing=false; vid.pause(); queue=null; if(run){ await demoSeek(run[2]+4,false); follow(run[1],null) }
+    playing=false; vid.pause(); await demoWait(400); vid.pause();
+    demoCap("Pause and draw","Arrows and circles right on the video. Saved clips stop on your drawing");
+    await demoPointAt("#drawbtn",true); await demoWait(500);
+    const tb=cur&&(cur.boxes.find(isSel)||cur.boxes.find(b=>b[2]===0&&whoOf(b)!=null));
+    DEMO_D=demoDrawing(tb); const r=ov.getBoundingClientRect(); const P=p=>[r.left+vrect.x+p[0]*vrect.w, r.top+vrect.y+p[1]*vrect.h];
+    const c0=DEMO_D.strokes[0].pts; await demoCursorTo(...P(c0[0]),700);
+    const t0=performance.now(), dur=3200;
+    while(DEMO_D&&DEMO_D.prog<1){ DEMO_D.prog=Math.min(1,(performance.now()-t0)/dur); const ar=DEMO_D.strokes[1];
+      const u=DEMO_D.prog<ar.at?DEMO_D.prog/ar.at:null; const pt=u!=null?[c0[0][0]+(c0[1][0]-c0[0][0])*u,c0[0][1]+(c0[1][1]-c0[0][1])*u]:ar.pts[Math.min(ar.pts.length-1,Math.floor(ar.pts.length*(DEMO_D.prog-ar.at)/(1-ar.at)))];
+      if(!vid.paused){ vid.pause(); playing=false } demoCursorAt(...P(pt)); drawOverlay(); await demoWait(30) }
+    await demoWait(5000); DEMO_D=null; drawOverlay();
+
+    // team shape
+    await demoChapter(++n,"Team shape"); follow(null,null); if(run) await demoSeek(run[2]+1,false); demoFocus("#stage");
+    demoCap("See the system","Each team's shape and the spacing between players, drawn live on the ice"); await demoPointAt("#tShape",true); setShape(0); play(true); $("#dcur").hidden=true; await demoWait(5500);
+    demoCap("Switch teams in one click","Is the D too far apart? Are the forwards stacked? You see it instantly"); setShape(1); await demoWait(5000); setShape(-1);
+
+    // clips
+    await demoChapter(++n,"Clip, coach, share"); vid.pause(); playing=false;
+    demoCap("Clip it. Coach it. Share it.","Save a clip with tags, notes and a voiceover, send it in one link, or download it as a video file");
+    await demoPointAt("#clipbtn",false); demoFocus("#clipbtn"); await demoWait(2500);
+    showTab("cl"); await demoScrollTo(".evcard","start"); demoFocus(".evcard"); await demoPointAt("#tab_cl",true); await demoWait(1500);
+    const dl=document.querySelector('#cllist [data-cact="dl"]'); if(dl){ await demoPointAt(dl,false); demoCap("Download any clip","An MP4 with the tracking and your drawings burned in, ready for the team chat"); await demoWait(4000) } else await demoWait(3000);
+    showTab("ev");
+
+    // player report
+    const star=run?run[1]:ROSTER.findIndex(p=>/zitserman/i.test(p.name));
+    if(star!=null&&star>=0&&repRow(star)){ await film(); await demoChapter(++n,"Post-game player report"); vid.pause(); playing=false; demoHost(true);
+      demoCap("A full report for every player","Ice time, shifts, distance, speed, where he played and every shot he took");
+      follow(star,null); await demoWait(300); const cr=$("#c_rep"); if(cr) await demoPointAt(cr,true); openReport(star); await demoWait(1200); demoFocus(null);
+      $("#rep").scrollTop=0; await demoPointAt(".rep-tiles",false); await demoWait(3500); await demoPointAt("#rep_rink",false); await demoWait(3500);
+      const sh=$("#rep_in .rep-sh"); if(sh){ sh.scrollIntoView({block:"center",behavior:"smooth"}); await demoWait(700); await demoPointAt(sh,false);
+        demoCap("Shift by shift","His speed every shift, fatigue flags and speed bursts. See when he ran out of gas"); await demoWait(5500) }
+      const ra=$("#rep_in .rep-acts"); if(ra){ ra.scrollIntoView({block:"center",behavior:"smooth"}); await demoWait(700); await demoPointAt("#rep_reel",false);
+        demoCap("His highlight reel and his own link","One click plays every big moment. Send the player his report in one link"); await demoWait(3000); await demoPointAt("#rep_link",false); await demoWait(2500) }
+      $("#rep").hidden=true; document.body.style.overflow=""; demoHost(false) }
+
+    // team stats
+    await stats(); await demoChapter(++n,"Team stats");
+    demoCap("The whole game in numbers","Score, shots, distance, speed and puck possession for both teams"); demoFocus("#st_tiles"); await demoPointAt("#st_tiles",false); await demoWait(4000); demoFocus(null);
+    await demoScrollTo("#st_pace"); demoFocus($("#st_pace").closest(".card")); demoCap("Team pace through the period","Who had the legs, and when. Goals marked on the line"); await demoPointAt("#st_pace",false); await demoWait(4500);
+    await demoScrollTo("#st_table"); demoFocus($("#st_table").closest(".card")); demoCap("Skater workload","Ice time, shifts, distance, speed, zone tilt and pace drop for every skater. Sort by any column"); await demoPointAt("#st_table th:nth-child(3)",false); await demoWait(5000);
+    await demoScrollTo("#st_motor"); demoFocus($("#st_motor").closest(".st-grid3")); demoCap("Zone tilt, motor map, role map","Who drives play, who works hardest, who's pinned in his own end"); await demoPointAt("#st_motor",false); await demoWait(3000); await demoPointAt("#st_role",false); await demoWait(2500);
+
+    // shot quality + reels
+    await demoChapter(++n,"Shot quality & highlight reels");
+    await demoScrollTo("#st_shots"); demoFocus($("#st_shots").closest(".st-grid")); demoCap("Every shot, rated","Big dots came from the slot. Expected goals shows who really had the better chances");
+    await demoPointAt("#st_shots",false); await demoWait(4500); await demoPointAt("#st_xg",false); await demoWait(3000);
+    const gh=document.querySelector('#st_reels [data-reel=""]'); if(gh){ await demoPointAt(gh,true); demoFocus(null); playReel(teamReel(null)); demoHost(false); await demoWait(600);
+      demoFocus("#stage"); demoCap("Game highlights, made by the AI","Every goal and slot chance, back to back, in one click"); $("#dcur").hidden=true; await demoWait(9000); queue=null; vid.pause(); $("#stopall").hidden=true }
+
+    // player links
+    await stats(); await demoChapter(++n,"Send players their reports");
+    await demoScrollTo("#st_links"); demoFocus($("#st_links").closest(".card")); demoCap("A link for every player","Copy them all at once and paste into the team chat. Each opens straight on his report");
+    await demoPointAt("#st_copyall",false); await demoWait(4000); const ol=document.querySelector("#st_links [data-copy]"); if(ol){ await demoPointAt(ol,false); await demoWait(2000) }
+
+    // name the unknowns
+    await film(); await demoChapter(++n,"Name the unknowns"); demoFocus(null);
+    demoCap("Fill the gaps in minutes","The film room shows each player the AI couldn't name, longest ice time first"); await demoPointAt("#revbtn",true); startReview(); await demoWait(1200);
+    if(!$("#review").hidden){ $("#review").scrollIntoView({block:"center",behavior:"smooth"}); await demoWait(600); demoFocus("#review"); await demoPointAt("#rv_sel",false);
+      demoCap("Pick the name once","His whole track gets it, and every stat and report updates"); await demoWait(5500) }
+    endReview(); window.scrollTo({top:0,behavior:"smooth"}); await demoWait(500);
+
+    // learning
+    if(run){ await demoChapter(++n,"It learns from you"); follow(run[1],null); await demoWait(300);
+      demoFocus("#pcard"); const fx=$("#pcard .fix"); demoCap("Fix a name once","The whole shift updates, and the AI remembers it for next time");
+      if(fx){ fx.scrollIntoView({block:"center",behavior:"smooth"}); await demoWait(600); await demoPointAt("#fixsel",false) } await demoWait(6000) }
+
+    // end card
+    follow(null,null); demoFocus(null); $("#dcur").hidden=true; $("#dcap").hidden=true; window.scrollTo({top:0,behavior:"smooth"}); vid.pause(); $("#dend").hidden=false; await demoWait(6500);
+  }catch(e){}
+  vid.pause(); queue=null; $("#stopall").hidden=true; DEMO_D=null; demoFocus(null); if(RV) endReview(); demoHost(false); ["#dcap","#dend","#dintro","#dchap","#dcur","#rep"].forEach(s=>$(s).hidden=true); document.body.style.overflow="";
+  tagMode=keep.tagMode; $("#rate").value=keep.rate; document.body.classList.remove("demo"); if(VIEW!=="film") setView("film"); if(SHAPE>=0) setShape(-1); showTab("ev");
+  DEMO=null; btn.textContent="▶ Demo"; btn.classList.remove("rec"); draw();
+}
+$("#demobtn").onclick=runDemo;
+$("#dend").onclick=()=>{ if(DEMO) DEMO.stop=true; $("#dend").hidden=true };
+})();
+</script>
+
+</body></html>

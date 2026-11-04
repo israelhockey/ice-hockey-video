@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SITE_NAME } from "@/lib/site";
 
 const NAV = [
+  { to: "/demo", label: "Live demo" },
   { to: "/games", label: "Games" },
   { to: "/request", label: "Request a breakdown" },
   { to: "/feedback", label: "Feedback" },

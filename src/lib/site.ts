@@ -24,6 +24,12 @@ export type Game = {
 
 const art = (id: string) => `https://claude.ai/artifact/${id}`;
 
+// The film room that runs on this site (files in public/filmroom/demo).
+export const DEMO_ROOM = {
+  src: "/filmroom/demo/index.html",
+  summary: "10 minutes of HC Tel Aviv vs Jerusalem Capitals, straight from the broadcast.",
+};
+
 export const GAMES: Game[] = [
   {
     id: "tlv-jer",
@@ -145,4 +151,3 @@ export const FAQ = [
     a: "Only the people you give the link to. Film rooms aren't listed, searchable or public: nobody finds your game by accident.",
   },
 ];
-

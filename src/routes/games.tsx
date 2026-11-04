@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { PageHeader, SiteShell } from "@/components/site-shell";
-import { GAMES, SITE_NAME } from "@/lib/site";
+import { DEMO_ROOM, GAMES, SITE_NAME } from "@/lib/site";
 
 export const Route = createFileRoute("/games")({
   head: () => ({ meta: [{ title: `Games · ${SITE_NAME}` }] }),
@@ -16,6 +16,20 @@ function Games() {
         map, shift chart and the tagged plays.
       </PageHeader>
       <div className="mx-auto max-w-6xl space-y-6 px-4 pb-16">
+        <Link
+          to="/demo"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/40 bg-primary/10 p-5 transition-colors hover:bg-primary/15"
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Live demo · runs right here
+            </p>
+            <p className="font-display mt-1 text-2xl font-bold uppercase">{DEMO_ROOM.summary}</p>
+          </div>
+          <span className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+            Open the film room
+          </span>
+        </Link>
         {GAMES.map((g) => (
           <article key={g.id} className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-5">

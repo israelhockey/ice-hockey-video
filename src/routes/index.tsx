@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { FAQ, GAMES, MORNING_AFTER, SITE_NAME, STEPS } from "@/lib/site";
+import { FAQ, MORNING_AFTER, SITE_NAME, STEPS } from "@/lib/site";
 
 const HERO_COPY =
   "Send the game after the final horn. By morning you have every shift and every goal clipped, skater workload and fatigue, a shot map, and a report link for each player.";
@@ -18,10 +18,16 @@ export const Route = createFileRoute("/")({
       { title: `${SITE_NAME} · Hockey film room for coaches and video staff` },
       { name: "description", content: HERO_COPY },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: `${SITE_NAME} · Hockey film room for coaches and video staff` },
+      {
+        property: "og:title",
+        content: `${SITE_NAME} · Hockey film room for coaches and video staff`,
+      },
       { property: "og:description", content: HERO_COPY },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: `${SITE_NAME} · Hockey film room for coaches and video staff` },
+      {
+        name: "twitter:title",
+        content: `${SITE_NAME} · Hockey film room for coaches and video staff`,
+      },
       { name: "twitter:description", content: HERO_COPY },
     ],
   }),
@@ -29,8 +35,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const demo = GAMES[0];
-
   return (
     <SiteShell>
       <section className="rink-bg border-b border-border">
@@ -49,16 +53,12 @@ function Index() {
             >
               Request a game breakdown
             </Link>
-            {demo?.rooms[1] && (
-              <a
-                href={demo.rooms[1].url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-md border border-border bg-card/60 px-5 py-3 font-semibold transition-colors hover:bg-accent"
-              >
-                Open a sample film room ↗
-              </a>
-            )}
+            <Link
+              to="/demo"
+              className="rounded-md border border-border bg-card/60 px-5 py-3 font-semibold transition-colors hover:bg-accent"
+            >
+              Try the live demo
+            </Link>
           </div>
           <dl className="mt-12 grid max-w-2xl grid-cols-3 gap-4 border-t border-border pt-6">
             {[
@@ -124,11 +124,7 @@ function Index() {
           <div className="mt-6 rounded-xl border border-border bg-card px-5">
             <Accordion type="single" collapsible className="w-full">
               {FAQ.map((f) => (
-                <AccordionItem
-                  key={f.q}
-                  value={f.q}
-                  className="border-border last:border-b-0"
-                >
+                <AccordionItem key={f.q} value={f.q} className="border-border last:border-b-0">
                   <AccordionTrigger className="text-base font-semibold hover:no-underline">
                     {f.q}
                   </AccordionTrigger>
