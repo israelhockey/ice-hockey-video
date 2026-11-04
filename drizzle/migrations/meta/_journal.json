@@ -8,6 +8,13 @@
       "when": 1793791361152,
       "tag": "0000_requests_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793791539076,
+      "tag": "0001_admin_by_email",
+      "breakpoints": true
     }
   ]
 }
