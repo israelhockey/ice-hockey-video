@@ -1,5 +1,7 @@
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 
+import { CONTACT_EMAIL } from "@/lib/site";
+
 const box =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
 
@@ -83,7 +85,7 @@ export function Sent({ onCopy, copied }: { onCopy: () => void; copied: boolean }
     <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-5 text-sm">
       <p className="font-semibold">Sorry, we couldn't save that just now.</p>
       <p className="mt-1 text-muted-foreground">
-        Nothing opened? Copy it and email it to us instead.{" "}
+        Copy your answers and email them to {CONTACT_EMAIL} instead.{" "}
         <button
           type="button"
           onClick={onCopy}
