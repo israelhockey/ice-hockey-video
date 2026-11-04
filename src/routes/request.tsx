@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { Choice, Field, Section, Sent, TextArea, TextInput } from "@/components/form-bits";
+import { Choice, Field, Section, Sent, TextArea, TextInput, ThankYou } from "@/components/form-bits";
 import { PageHeader, SiteShell } from "@/components/site-shell";
-import { copyText, formatFields, openEmail } from "@/lib/send";
+import { copyText, formatFields, saveRequest, uploadRoster } from "@/lib/send";
 import { CONTACT_EMAIL, SITE_NAME, TURNAROUND } from "@/lib/site";
 
 export const Route = createFileRoute("/request")({
@@ -241,9 +241,10 @@ function RequestPage() {
 
         <button
           type="submit"
+          disabled={saving}
           className="w-full rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground hover:opacity-90 sm:w-auto"
         >
-          Send request
+          {saving ? "Sending…" : "Send request"}
         </button>
       </form>
     </SiteShell>

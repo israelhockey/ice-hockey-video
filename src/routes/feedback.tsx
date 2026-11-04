@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { Choice, Field, Section, Sent, TextArea, TextInput } from "@/components/form-bits";
+import { Choice, Field, Section, Sent, TextArea, TextInput, ThankYou } from "@/components/form-bits";
 import { PageHeader, SiteShell } from "@/components/site-shell";
-import { copyText, formatFields, openEmail } from "@/lib/send";
+import { copyText, formatFields, saveFeedback } from "@/lib/send";
 import { CONTACT_EMAIL, GAMES, SITE_NAME } from "@/lib/site";
 
 export const Route = createFileRoute("/feedback")({
@@ -18,30 +18,66 @@ function FeedbackPage() {
   const [useful, setUseful] = useState("");
   const [body, setBody] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
   const rooms = GAMES.flatMap((g) =>
     g.rooms.map((r) => `${g.home.name} vs ${g.away.name} · ${r.label}`),
   );
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     const g = (k: string) => String(d.get(k) ?? "");
-    const text = formatFields([
-      ["Name", g("name")],
-      ["Email", g("email")],
-      ["Role", g("role")],
-      ["Film room", g("room")],
-      ["Player names right (1-5)", names],
-      ["How useful (1-5)", useful],
-      ["What worked", g("good")],
-      ["What's wrong or confusing", g("bad")],
-      ["What should we add", g("add")],
-      ["Would you pay for it / what for", g("pay")],
-    ]);
-    setBody(text);
-    setCopied(false);
-    openEmail(`Beta feedback${g("name") ? ` from ${g("name")}` : ""}`, text);
+    setSaving(true);
+    setBody(null);
+    try {
+      await saveFeedback({
+        name: g("name"),
+        email: g("email"),
+        role: g("role"),
+        film_room: g("room"),
+        names_right_1to5: names ? Number(names) : null,
+        useful_1to5: useful ? Number(useful) : null,
+        what_worked: g("good"),
+        whats_wrong: g("bad"),
+        what_to_add: g("add"),
+        would_pay: g("pay"),
+      });
+      setDone(true);
+      window.scrollTo({ top: 0 });
+    } catch {
+      setBody(
+        formatFields([
+          ["Name", g("name")],
+          ["Email", g("email")],
+          ["Role", g("role")],
+          ["Film room", g("room")],
+          ["Player names right (1-5)", names],
+          ["How useful (1-5)", useful],
+          ["What worked", g("good")],
+          ["What's wrong or confusing", g("bad")],
+          ["What should we add", g("add")],
+          ["Would you pay for it / what for", g("pay")],
+        ]),
+      );
+      setCopied(false);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  if (done)
+    return (
+      <SiteShell>
+        <PageHeader kicker="Beta" title="Feedback received">
+          Thanks for helping us fix it.
+        </PageHeader>
+        <ThankYou title="Thank you!">
+          We read every answer. Waiting on a game? We'll email your film room link, usually
+          within a day.
+        </ThankYou>
+      </SiteShell>
+    );
 
   return (
     <SiteShell>
@@ -118,9 +154,10 @@ function FeedbackPage() {
 
         <button
           type="submit"
+          disabled={saving}
           className="w-full rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground hover:opacity-90 sm:w-auto"
         >
-          Send feedback
+          {saving ? "Sending…" : "Send feedback"}
         </button>
       </form>
     </SiteShell>
