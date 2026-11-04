@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { Choice, Field, Section, Sent, TextArea, TextInput } from "@/components/form-bits";
+import { Choice, Field, Section, Sent, TextArea, TextInput, ThankYou } from "@/components/form-bits";
 import { PageHeader, SiteShell } from "@/components/site-shell";
-import { copyText, formatFields, openEmail } from "@/lib/send";
+import { copyText, formatFields, saveRequest, uploadRoster } from "@/lib/send";
 import { CONTACT_EMAIL, SITE_NAME, TURNAROUND } from "@/lib/site";
 
 export const Route = createFileRoute("/request")({
@@ -22,14 +22,18 @@ function RequestPage() {
   const [copied, setCopied] = useState(false);
   const [roster, setRoster] = useState("");
   const [rosterFile, setRosterFile] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
 
   async function loadCsv(f: File | undefined) {
     if (!f) return;
     setRosterFile(f.name);
+    setFile(f);
     setRoster((await f.text()).trim());
   }
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
     const g = (k: string) => String(d.get(k) ?? "");
@@ -39,22 +43,62 @@ function RequestPage() {
         : span === "period"
           ? `Period: ${g("period")}`
           : `From ${g("from")} to ${g("to")} in the video`;
-    const text = formatFields([
-      ["Name", g("name")],
-      ["Email", g("email")],
-      ["Team / organisation", g("org")],
-      ["Video", g("video")],
-      ["What to analyse", spanText],
-      ["Home team", `${g("home")} (jersey: ${g("homeColor")})`],
-      ["Away team", `${g("away")} (jersey: ${g("awayColor")})`],
-      ["Goalies who played", g("goalies")],
-      ["Roster", roster],
-      ["Notes", g("notes")],
-    ]);
-    setBody(text);
-    setCopied(false);
-    openEmail(`Game breakdown request: ${g("home")} vs ${g("away")}`, text);
+    setSaving(true);
+    setBody(null);
+    try {
+      const roster_file_path = file ? await uploadRoster(file) : null;
+      await saveRequest({
+        name: g("name"),
+        email: g("email"),
+        team_org: g("org"),
+        video_url: g("video"),
+        span,
+        period: span === "period" ? g("period") : null,
+        range_from: span === "range" ? g("from") : null,
+        range_to: span === "range" ? g("to") : null,
+        home_team: g("home"),
+        home_color: g("homeColor"),
+        away_team: g("away"),
+        away_color: g("awayColor"),
+        goalies: g("goalies"),
+        roster_text: roster,
+        roster_file_path,
+        notes: g("notes"),
+      });
+      setDone(true);
+      window.scrollTo({ top: 0 });
+    } catch {
+      setBody(
+        formatFields([
+          ["Name", g("name")],
+          ["Email", g("email")],
+          ["Team / organisation", g("org")],
+          ["Video", g("video")],
+          ["What to analyse", spanText],
+          ["Home team", `${g("home")} (jersey: ${g("homeColor")})`],
+          ["Away team", `${g("away")} (jersey: ${g("awayColor")})`],
+          ["Goalies who played", g("goalies")],
+          ["Roster", roster],
+          ["Notes", g("notes")],
+        ]),
+      );
+      setCopied(false);
+    } finally {
+      setSaving(false);
+    }
   }
+
+  if (done)
+    return (
+      <SiteShell>
+        <PageHeader kicker="Beta" title="Request received">
+          Thanks for sending your game.
+        </PageHeader>
+        <ThankYou title="Thank you!">
+          We'll email your film room link, usually within a day.
+        </ThankYou>
+      </SiteShell>
+    );
 
   return (
     <SiteShell>
@@ -197,9 +241,10 @@ function RequestPage() {
 
         <button
           type="submit"
+          disabled={saving}
           className="w-full rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground hover:opacity-90 sm:w-auto"
         >
-          Send request
+          {saving ? "Sending…" : "Send request"}
         </button>
       </form>
     </SiteShell>
