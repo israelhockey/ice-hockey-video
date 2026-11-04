@@ -14,16 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      breakdown_requests: {
+        Row: {
+          away_color: string | null
+          away_team: string
+          created_at: string
+          email: string
+          filmroom_url: string | null
+          goalies: string | null
+          home_color: string | null
+          home_team: string
+          id: string
+          name: string
+          notes: string | null
+          period: string | null
+          range_from: string | null
+          range_to: string | null
+          roster_file_path: string | null
+          roster_text: string | null
+          span: string
+          status: string
+          team_org: string | null
+          video_url: string
+        }
+        Insert: {
+          away_color?: string | null
+          away_team: string
+          created_at?: string
+          email: string
+          filmroom_url?: string | null
+          goalies?: string | null
+          home_color?: string | null
+          home_team: string
+          id?: string
+          name: string
+          notes?: string | null
+          period?: string | null
+          range_from?: string | null
+          range_to?: string | null
+          roster_file_path?: string | null
+          roster_text?: string | null
+          span: string
+          status?: string
+          team_org?: string | null
+          video_url: string
+        }
+        Update: {
+          away_color?: string | null
+          away_team?: string
+          created_at?: string
+          email?: string
+          filmroom_url?: string | null
+          goalies?: string | null
+          home_color?: string | null
+          home_team?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          period?: string | null
+          range_from?: string | null
+          range_to?: string | null
+          roster_file_path?: string | null
+          roster_text?: string | null
+          span?: string
+          status?: string
+          team_org?: string | null
+          video_url?: string
+        }
+        Relationships: []
+      }
+      feedback: {
+        Row: {
+          created_at: string
+          email: string | null
+          film_room: string | null
+          id: string
+          name: string | null
+          names_right_1to5: number | null
+          role: string | null
+          useful_1to5: number | null
+          what_to_add: string | null
+          what_worked: string | null
+          whats_wrong: string | null
+          would_pay: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          film_room?: string | null
+          id?: string
+          name?: string | null
+          names_right_1to5?: number | null
+          role?: string | null
+          useful_1to5?: number | null
+          what_to_add?: string | null
+          what_worked?: string | null
+          whats_wrong?: string | null
+          would_pay?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          film_room?: string | null
+          id?: string
+          name?: string | null
+          names_right_1to5?: number | null
+          role?: string | null
+          useful_1to5?: number | null
+          what_to_add?: string | null
+          what_worked?: string | null
+          whats_wrong?: string | null
+          would_pay?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +287,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
