@@ -97,3 +97,52 @@ export const STEPS = [
     d: "You get a link to the film room with stats, shot map, shift chart and every tagged play.",
   },
 ];
+
+// What the coaching and video staff find ready the morning after a game.
+export const MORNING_AFTER = [
+  {
+    t: "Every shift, clipped",
+    d: "Each player's shifts pulled out in order, so a line can be checked without scrubbing through the game.",
+  },
+  {
+    t: "Every goal and chance, clipped",
+    d: "Goals with the scorer named, plus shots and scoring chances, each one its own clip you can send on.",
+  },
+  {
+    t: "Skater workload and fatigue",
+    d: "Distance, average and top speed, sprint bursts, time on ice and shift length for every named player, and how much of that drops off as the game goes on.",
+  },
+  {
+    t: "Shot map",
+    d: "Every shot on its spot on the rink, slot chances highlighted, expected goals for both teams.",
+  },
+  {
+    t: "A report link for each player",
+    d: "One link per player with his shifts, his clips and his numbers, ready to forward to him before the meeting.",
+  },
+];
+
+// The questions staff ask before sending their first game.
+export const FAQ = [
+  {
+    q: "What video works?",
+    a: "A broadcast feed, or a wide camera that follows the play the way a LiveBarn-style feed does. Anything wide is fine as long as the players and their jersey numbers are readable. Clearly different jersey colours help, and commentary audio, if the game has any, helps us put names on players.",
+  },
+  {
+    q: "How long does it take?",
+    a: "Within a day during the beta. Send the game after the final horn and the film room link is usually back with you before the next practice.",
+  },
+  {
+    q: "What do you need from us?",
+    a: "The video link and both rosters with jersey numbers. That's everything: shifts, events and workload all come off the video itself.",
+  },
+  {
+    q: "How accurate are the names?",
+    a: "A name only appears when the AI is sure of it. Otherwise the player shows a question mark instead of a guess, and staff can fix any name in the film room in seconds.",
+  },
+  {
+    q: "Who can see the footage?",
+    a: "Only the people you give the link to. Film rooms aren't listed, searchable or public: nobody finds your game by accident.",
+  },
+];
+
