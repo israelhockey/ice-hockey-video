@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { PageHeader, SiteShell } from "@/components/site-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -191,7 +191,7 @@ function RequestCard({ r }: { r: Req }) {
   );
 }
 
-function Row({ k, children }: { k: string; children: React.ReactNode }) {
+function Row({ k, children }: { k: string; children: ReactNode }) {
   return (
     <div>
       <dt className="text-xs uppercase text-muted-foreground">{k}</dt>
