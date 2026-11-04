@@ -67,12 +67,21 @@ export function Choice({
   );
 }
 
+export function ThankYou({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mx-auto max-w-6xl px-4 pb-16">
+      <div className="max-w-3xl rounded-xl border border-primary/40 bg-primary/10 p-6">
+        <h2 className="font-display text-2xl font-semibold uppercase">{title}</h2>
+        <p className="mt-2 text-muted-foreground">{children}</p>
+      </div>
+    </div>
+  );
+}
+
 export function Sent({ onCopy, copied }: { onCopy: () => void; copied: boolean }) {
   return (
-    <div className="rounded-xl border border-primary/40 bg-primary/10 p-5 text-sm">
-      <p className="font-semibold">
-        Your email app should have opened with everything filled in. Just press send.
-      </p>
+    <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-5 text-sm">
+      <p className="font-semibold">Sorry, we couldn't save that just now.</p>
       <p className="mt-1 text-muted-foreground">
         Nothing opened? Copy it and email it to us instead.{" "}
         <button

@@ -1,7 +1,7 @@
-import { CONTACT_EMAIL } from "./site";
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 
-// Beta: requests and feedback go out as a pre-filled email. When the site gets a database (Lovable Cloud),
-// only this file needs to change.
+// Requests and feedback are saved to the database. If saving fails, the page offers "copy the details".
 export function formatFields(fields: [string, string][]) {
   return fields
     .filter(([, v]) => v.trim())
@@ -9,9 +9,29 @@ export function formatFields(fields: [string, string][]) {
     .join("\n\n");
 }
 
-export function openEmail(subject: string, body: string) {
-  const href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = href;
+const clean = <T extends Record<string, unknown>>(row: T) =>
+  Object.fromEntries(
+    Object.entries(row).map(([k, v]) => [k, typeof v === "string" && !v.trim() ? null : v]),
+  ) as T;
+
+export async function uploadRoster(file: File): Promise<string> {
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${crypto.randomUUID()}/${safe}`;
+  const { error } = await supabase.storage
+    .from("rosters")
+    .upload(path, file, { contentType: file.type || "text/csv" });
+  if (error) throw error;
+  return path;
+}
+
+export async function saveRequest(row: TablesInsert<"breakdown_requests">) {
+  const { error } = await supabase.from("breakdown_requests").insert(clean(row));
+  if (error) throw error;
+}
+
+export async function saveFeedback(row: TablesInsert<"feedback">) {
+  const { error } = await supabase.from("feedback").insert(clean(row));
+  if (error) throw error;
 }
 
 export async function copyText(text: string) {
